@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Dine❤️Mate Design System & Core Styles
+   Palette: Warm Cream (#FAF6F0), Rich Dark Olive (#20291B),
+   Fresh Basil Green (#3E7D50), Warm Orange/Yellow (#FF6D14 / #FFA81F)
+   ========================================================================== */
+
+:root {
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Theme Colors - Mood Board */
+  --bg-canvas: #FAF6F0;
+  --bg-sidebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-surface: #F5EFE4;
+  --bg-surface-hover: #ECE4D6;
+  --bg-input: #FFFFFF;
+
+  --border-subtle: #EBE2D3;
+  --border-card: #E4D9C7;
+  --border-accent: #FF7A1A;
+
+  /* Typography */
+  --text-primary: #1F271B;    /* Rich Dark Olive */
+  --text-secondary: #52604B;  /* Muted Olive */
+  --text-muted: #809079;
+  --text-inverted: #FFFFFF;
+
+  /* Accent Tones */
+  --color-olive: #293623;
+  --color-olive-dark: #192215;
+  --color-olive-light: #44543C;
+
+  --color-basil: #3E7D50;     /* Fresh Basil Green */
+  --color-basil-light: #EBF5EE;
+  --color-basil-border: #C4E2CC;
+  --color-basil-dark: #2F613E;
+
+  --color-orange: #FF6A13;    /* Warm Orange */
+  --color-yellow: #FFA61F;    /* Cheddar Yellow */
+  --color-heart: #E63946;     /* Sleek Red Heart */
+  --color-heart-glow: rgba(230, 57, 70, 0.45);
+
+  --btn-primary: linear-gradient(135deg, #FF6A13 0%, #FFA61F 100%);
+  --btn-primary-hover: linear-gradient(135deg, #ED5A03 0%, #F5970F 100%);
+  --btn-secondary: #293623;
+
+  /* Elevation Shadows */
+  --shadow-sm: 0 2px 6px rgba(41, 54, 35, 0.05);
+  --shadow-md: 0 8px 22px -6px rgba(41, 54, 35, 0.09), 0 2px 8px -2px rgba(41, 54, 35, 0.04);
+  --shadow-lg: 0 16px 38px -10px rgba(41, 54, 35, 0.14), 0 6px 14px -3px rgba(41, 54, 35, 0.06);
+  --shadow-float: 0 22px 48px -12px rgba(255, 106, 19, 0.22), 0 8px 20px -4px rgba(41, 54, 35, 0.08);
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
+
+  --transition-fast: 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-bounce: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography Headings */
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Logo Heart Micro-animation */
+.logo-heart {
+  display: inline-block;
+  color: var(--color-heart);
+  font-size: 0.95em;
+  margin: 0 2px;
+  animation: heartPulse 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 8px var(--color-heart-glow));
+  vertical-align: middle;
+  transform-origin: center;
+}
+
+@keyframes heartPulse {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.22); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.15); }
+  56% { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+/* Floating Animations for 3D Food */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(4deg);
+  }
+}
+
+@keyframes floatReverse {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(10px) rotate(-5deg);
+  }
+}
+
+@keyframes pulseSoft {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+/* Micro-animations */
+.animate-float-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 6s ease-in-out infinite;
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
