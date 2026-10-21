@@ -1,0 +1,1 @@
+web: python -c "import os, sys; sys.path.insert(0, 'backend'); os.path.exists('data/processed/restaurants.sqlite') or __import__('app.catalog.ingest').catalog.ingest.run_ingest()" && uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port ${PORT:-8000}
