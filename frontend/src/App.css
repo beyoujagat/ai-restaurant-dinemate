@@ -1715,7 +1715,6 @@
   inset: 0;
   background: rgba(20, 26, 18, 0.58);
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   z-index: 100;
   display: flex;
   align-items: center;
