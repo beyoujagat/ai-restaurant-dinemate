@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface WelcomeModalProps {
   onDismiss: () => void;
@@ -15,6 +15,15 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss }) => {
       onDismiss();
     }, 320);
   };
+
+  // Lock body scroll while modal is open; restore on unmount.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   return (
     <div
@@ -87,6 +96,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onDismiss }) => {
             src="/assets/hero_food_3d.jpg"
             alt="Delicious 3D food illustration"
             className="modal-hero-img"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            width={320}
+            height={220}
           />
           <div className="modal-visual-overlay-pill">
             <span className="sparkle-icon">✨</span> 51,000+ Verified Tables

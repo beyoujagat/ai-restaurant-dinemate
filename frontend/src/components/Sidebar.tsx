@@ -43,8 +43,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <li key={item.id}>
                 <button
                   type="button"
+                  id={`nav-btn-${item.id}`}
                   className={`nav-link-btn ${isActive ? 'active' : ''}`}
                   onClick={() => onNavClick(item.id)}
+                >
+                  <span className="nav-link-icon">{item.icon}</span>
+                  <span className="nav-link-label">{item.label}</span>
+                  {item.badge && (
+                    <span className={`nav-link-badge ${isActive ? 'badge-active' : ''}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+          {/* Duplicate set for seamless continuous ticker loop on mobile */}
+          {navItems.map((item) => {
+            const isActive = activeNav === item.id;
+            return (
+              <li key={`clone-${item.id}`} className="nav-item-clone" aria-hidden="true">
+                <button
+                  type="button"
+                  id={`nav-btn-${item.id}-clone`}
+                  className={`nav-link-btn ${isActive ? 'active' : ''}`}
+                  onClick={() => onNavClick(item.id)}
+                  tabIndex={-1}
                 >
                   <span className="nav-link-icon">{item.icon}</span>
                   <span className="nav-link-label">{item.label}</span>

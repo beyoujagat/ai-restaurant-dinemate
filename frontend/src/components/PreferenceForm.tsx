@@ -8,6 +8,7 @@ interface PreferenceFormProps {
   onChange: (updated: RecommendationRequest) => void;
   onSubmit: () => void;
   isLoading: boolean;
+  validationMessage?: string | null;
 }
 
 export const PreferenceForm: React.FC<PreferenceFormProps> = ({
@@ -17,6 +18,7 @@ export const PreferenceForm: React.FC<PreferenceFormProps> = ({
   onChange,
   onSubmit,
   isLoading,
+  validationMessage,
 }) => {
   const budgetOptions: Array<{ id: 'low' | 'medium' | 'high'; label: string; hint: string }> = [
     {
@@ -96,6 +98,9 @@ export const PreferenceForm: React.FC<PreferenceFormProps> = ({
               onChange={handleLocationChange}
               disabled={metaLoading || isLoading}
             >
+              <option value="" disabled>
+                -- Select a Bangalore Neighborhood --
+              </option>
               {metaOptions?.locations.map((loc) => (
                 <option key={loc} value={loc}>
                   {loc}
@@ -114,7 +119,7 @@ export const PreferenceForm: React.FC<PreferenceFormProps> = ({
           </label>
           <div className="budget-pill-group">
             {budgetOptions.map((b) => {
-              const isSelected = preferences.budget === b.id;
+              const isSelected = Boolean(preferences.budget && preferences.budget === b.id);
               return (
                 <button
                   key={b.id}
@@ -171,7 +176,7 @@ export const PreferenceForm: React.FC<PreferenceFormProps> = ({
             </label>
             <div className="rating-pill-group">
               {ratingOptions.map((r, idx) => {
-                const isSelected = preferences.min_rating === r.value;
+                const isSelected = preferences.min_rating !== undefined && preferences.min_rating === r.value;
                 return (
                   <button
                     key={idx}
@@ -207,6 +212,14 @@ export const PreferenceForm: React.FC<PreferenceFormProps> = ({
             />
           </div>
         </div>
+
+        {/* Validation message if required preferences are missing */}
+        {validationMessage && (
+          <div className="form-validation-alert" role="alert" id="form-validation-error">
+            <span className="validation-alert-icon">⚠️</span>
+            <span className="validation-alert-text">{validationMessage}</span>
+          </div>
+        )}
 
         {/* Action Button */}
         <div className="form-submit-row">

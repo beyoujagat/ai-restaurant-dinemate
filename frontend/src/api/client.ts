@@ -15,7 +15,7 @@ export interface MetaOptions {
 
 export interface RecommendationRequest {
   location: string;
-  budget: 'low' | 'medium' | 'high';
+  budget: 'low' | 'medium' | 'high' | '';
   cuisine: string;
   min_rating?: number | null;
   extras?: string;

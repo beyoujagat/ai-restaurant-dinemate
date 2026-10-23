@@ -21,7 +21,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
       id={`restaurant-card-${item.id}`}
       aria-labelledby={`card-title-${item.id}`}
     >
-      {/* Top Banner Row: Rank, Neighborhood & Rating */}
+      {/* Top Banner Row: Rank, Speciality/Vibe & Rating */}
       <div className="card-top-row">
         <div className="card-rank-tag">
           <span className="rank-number">#{rank}</span>
@@ -29,7 +29,17 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
         </div>
 
         {item.vibe_tag && (
-          <div className="card-vibe-tag" title="AI Vibe Profile" aria-label={`Vibe: ${item.vibe_tag}`}>
+          <div
+            className={`card-vibe-tag ${
+              item.vibe_tag.length > 24
+                ? 'vibe-extra-long'
+                : item.vibe_tag.length > 17
+                ? 'vibe-long'
+                : ''
+            }`}
+            title="AI Vibe Profile"
+            aria-label={`Vibe: ${item.vibe_tag}`}
+          >
             <span className="vibe-sparkle">✨</span>
             <span className="vibe-text">{item.vibe_tag}</span>
           </div>
@@ -71,11 +81,6 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             <span className="ai-sparkle">✨</span>
             <span className="ai-header-title">Dine❤️Mate AI Rationale</span>
           </div>
-          {item.vibe_tag && (
-            <span className="ai-vibe-badge" title="AI Vibe Profile">
-              {item.vibe_tag}
-            </span>
-          )}
         </div>
         <p className="ai-rationale-text">{item.explanation}</p>
       </div>

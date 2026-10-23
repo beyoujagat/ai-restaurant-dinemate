@@ -32,14 +32,17 @@ export const RecommendPage: React.FC = () => {
   // Navigation State
   const [activeNav, setActiveNav] = useState('recommend');
 
-  // Query & Preferences State
+  // Query & Preferences State: initially unselected so user must choose
   const [preferences, setPreferences] = useState<RecommendationRequest>({
-    location: 'Banashankari',
-    budget: 'medium',
+    location: '',
+    budget: '',
     cuisine: '',
-    min_rating: 4.0,
+    min_rating: undefined,
     extras: '',
   });
+
+  // Validation Error State
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Keep a ref to latest preferences so dismiss handler can access current values safely
   const preferencesRef = useRef(preferences);
@@ -100,23 +103,12 @@ export const RecommendPage: React.FC = () => {
         }
       });
 
-    // 2. Load catalog options
+    // 2. Load catalog options (do not apply silent default selections)
     fetchMetaOptions()
       .then((data) => {
         if (!isMounted) return;
         setMetaOptions(data);
         setMetaLoading(false);
-
-        // Pre-set default location if available
-        const defaultLoc =
-          data.locations.includes('Banashankari')
-            ? 'Banashankari'
-            : data.locations[0] || 'Koramangala 5th Block';
-
-        setPreferences((prev) => ({
-          ...prev,
-          location: defaultLoc,
-        }));
       })
       .catch((err) => {
         if (isMounted) {
@@ -130,13 +122,35 @@ export const RecommendPage: React.FC = () => {
     };
   }, []); // Run strictly once on mount
 
-  // Modal dismiss handler
+  // Validate required preferences before querying
+  const validatePreferences = (prefs: RecommendationRequest): string | null => {
+    const missing: string[] = [];
+    if (!prefs.location || !prefs.location.trim()) {
+      missing.push('Neighborhood');
+    }
+    if (!prefs.budget) {
+      missing.push('Budget');
+    }
+    if (prefs.min_rating === undefined) {
+      missing.push('Minimum Rating');
+    }
+    if (missing.length > 0) {
+      return `Please choose your preferences before searching: missing ${missing.join(', ')}.`;
+    }
+    return null;
+  };
+
+  const handlePreferenceChange = (updated: RecommendationRequest) => {
+    setPreferences(updated);
+    if (validationError) {
+      const err = validatePreferences(updated);
+      setValidationError(err);
+    }
+  };
+
+  // Modal dismiss handler -- does not trigger auto-fetch
   const handleModalDismiss = () => {
     setShowWelcomeModal(false);
-    // Explicit trigger on first modal dismiss
-    if (!hasSearched) {
-      executeRecommendation(preferencesRef.current);
-    }
   };
 
   // Explicit User Action: Clicking a category chip
@@ -146,11 +160,25 @@ export const RecommendPage: React.FC = () => {
       cuisine: cuisineKeyword,
     };
     setPreferences(updated);
+    const error = validatePreferences(updated);
+    if (error) {
+      setValidationError(error);
+      const formEl = document.getElementById('preference-form');
+      formEl?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    setValidationError(null);
     executeRecommendation(updated);
   };
 
-  // Explicit User Action: Form submit
+  // Explicit User Action: Form submit with required validation
   const handleFormSubmit = () => {
+    const error = validatePreferences(preferences);
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+    setValidationError(null);
     executeRecommendation(preferences);
   };
 
@@ -163,8 +191,24 @@ export const RecommendPage: React.FC = () => {
         min_rating: 4.5,
       };
       setPreferences(updated);
+      const error = validatePreferences(updated);
+      if (error) {
+        setValidationError(error);
+        const formEl = document.getElementById('preference-form');
+        formEl?.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+      setValidationError(null);
       executeRecommendation(updated);
     } else if (navId === 'recommend') {
+      const error = validatePreferences(preferences);
+      if (error) {
+        setValidationError(error);
+        const formEl = document.getElementById('preference-form');
+        formEl?.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+      setValidationError(null);
       executeRecommendation(preferences);
     } else if (navId === 'neighborhoods') {
       const el = document.getElementById('pref-location');
@@ -182,6 +226,14 @@ export const RecommendPage: React.FC = () => {
       extras: topSearchTerm,
     };
     setPreferences(updated);
+    const error = validatePreferences(updated);
+    if (error) {
+      setValidationError(error);
+      const formEl = document.getElementById('preference-form');
+      formEl?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    setValidationError(null);
     executeRecommendation(updated);
   };
 
@@ -255,145 +307,177 @@ export const RecommendPage: React.FC = () => {
             </div>
 
             <div className="hero-img-col">
-              <img
-                src="/assets/hero_food_3d.jpg"
-                alt="3D Gourmet Food Showcase"
-                className="hero-3d-graphic animate-float-slow"
-              />
+              <div className="hero-food-cards-group" aria-label="Featured Dining Specialties">
+                {/* 1. Biryani Card (Left) */}
+                <div className="hero-food-card card-biryani">
+                  <img
+                    src="/assets/hero_food_biryani.jpg"
+                    alt="Aromatic Chicken Dum Biryani"
+                    className="hero-food-card-img"
+                    loading="eager"
+                  />
+                </div>
+
+                {/* 2. Dosa Card (Centre - Visually Prominent) */}
+                <div className="hero-food-card card-dosa">
+                  <img
+                    src="/assets/hero_food_dosa.jpg"
+                    alt="Crispy South Indian Masala Dosa"
+                    className="hero-food-card-img"
+                    loading="eager"
+                  />
+                </div>
+
+                {/* 3. Chinese Card (Right) */}
+                <div className="hero-food-card card-chinese">
+                  <img
+                    src="/assets/hero_food_chinese.jpg"
+                    alt="Savory Fried Rice with Manchurian"
+                    className="hero-food-card-img"
+                    loading="eager"
+                  />
+                </div>
+              </div>
             </div>
           </section>
 
-          {/* Popular Cravings Category Bar */}
-          <CategoryChips
-            selectedCuisine={preferences.cuisine}
-            onSelectCategory={handleSelectCategory}
-          />
+          {/* Main Discovery Workspace (Stationary Discovery Area on Desktop) */}
+          <div className="discovery-workspace-container">
+            {/* Popular Cravings Category Bar */}
+            <CategoryChips
+              selectedCuisine={preferences.cuisine}
+              onSelectCategory={handleSelectCategory}
+            />
 
-          {/* Form & Results Two-Column Layout */}
-          <div className="content-grid-layout">
-            {/* Left Column: Form Controls */}
-            <section className="form-column" aria-label="Dining Criteria">
-              <PreferenceForm
-                metaOptions={metaOptions}
-                metaLoading={metaLoading}
-                preferences={preferences}
-                onChange={setPreferences}
-                onSubmit={handleFormSubmit}
-                isLoading={isLoading}
-              />
-            </section>
+            {/* Form & Results Two-Column Layout */}
+            <div className="content-grid-layout">
+              {/* Left Column: Form Controls */}
+              <section className="form-column" aria-label="Dining Criteria">
+                <PreferenceForm
+                  metaOptions={metaOptions}
+                  metaLoading={metaLoading}
+                  preferences={preferences}
+                  onChange={handlePreferenceChange}
+                  onSubmit={handleFormSubmit}
+                  isLoading={isLoading}
+                  validationMessage={validationError}
+                />
+              </section>
 
-            {/* Right Column: Dynamic Recommendations */}
-            <section className="results-column" aria-label="Recommendations">
-              {/* Results Top Meta Bar */}
-              <div className="results-status-bar">
-                <div className="results-meta-title">
-                  <h3 className="results-heading">Curated Recommendations</h3>
-                  {recResponse && (
-                    <span className="results-count-chip">
-                      {recResponse.recommendations.length} of {recResponse.candidate_count} candidates
-                    </span>
+              {/* Right Column: Dynamic Recommendations */}
+              <section className="results-column" aria-label="Recommendations">
+                <div className="results-sticky-header-container">
+                  {/* Results Top Meta Bar */}
+                  <div className="results-status-bar">
+                    <div className="results-meta-title">
+                      <h3 className="results-heading">Curated Recommendations</h3>
+                      {recResponse && (
+                        <span className="results-count-chip">
+                          {recResponse.recommendations.length} of {recResponse.candidate_count} candidates
+                        </span>
+                      )}
+                    </div>
+
+                    {recResponse && (
+                      <div className="results-badges-group">
+                        <span
+                          className={`source-badge ${
+                            recResponse.source === 'llm' ? 'source-llm' : 'source-heuristic'
+                          }`}
+                          title={
+                            recResponse.source === 'llm'
+                              ? 'Groq LLM generated natural-language explanations'
+                              : 'Deterministic catalog heuristic explanation'
+                          }
+                        >
+                          {recResponse.source === 'llm' ? '✨ Groq LLM Reasoned' : '⚡ Heuristic Match'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Relaxed Filters Notification Banner */}
+                  {recResponse?.relaxed_filters && recResponse.relaxed_filters.length > 0 && (
+                    <div className="relaxed-notice-banner" role="alert">
+                      <span className="notice-icon">ℹ️</span>
+                      <span>
+                        Note: To find great matches, some constraints were broadened:{' '}
+                        <strong>{recResponse.relaxed_filters.join(', ')}</strong>.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Heuristic Fallback Notice Banner */}
+                  {recResponse?.source === 'heuristic' && recResponse.recommendations.length > 0 && (
+                    <div className="heuristic-notice-banner" role="status">
+                      <span className="notice-icon">⚡</span>
+                      <span>
+                        <strong>Catalog Heuristic Ranking Active:</strong> Recommendations were ranked using deterministic catalog ratings and review votes while AI reasoning is offline.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Summary line from engine */}
+                  {recResponse?.summary && (
+                    <div className="results-summary-quote">
+                      <span className="quote-mark">“</span>
+                      <span>{recResponse.summary}</span>
+                      <span className="quote-mark">”</span>
+                    </div>
+                  )}
+
+                  {/* Error Banner */}
+                  {errorMessage && (
+                    <div className="results-error-card" role="alert">
+                      <div className="error-icon">⚠️</div>
+                      <div className="error-content">
+                        <h4>Unable to Load Recommendations</h4>
+                        <p>{errorMessage}</p>
+                        <button
+                          type="button"
+                          className="btn-retry"
+                          onClick={() => executeRecommendation(preferences)}
+                        >
+                          Retry Search
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {recResponse && (
-                  <div className="results-badges-group">
-                    <span
-                      className={`source-badge ${
-                        recResponse.source === 'llm' ? 'source-llm' : 'source-heuristic'
-                      }`}
-                      title={
-                        recResponse.source === 'llm'
-                          ? 'Groq LLM generated natural-language explanations'
-                          : 'Deterministic catalog heuristic explanation'
-                      }
-                    >
-                      {recResponse.source === 'llm' ? '✨ Groq LLM Reasoned' : '⚡ Heuristic Match'}
-                    </span>
+                {/* Content States: Loading, Empty, Cards, or Ready State */}
+                {isLoading ? (
+                  <LoadingSpinner />
+                ) : recResponse && recResponse.recommendations.length > 0 ? (
+                  <div className="recommendations-grid">
+                    {recResponse.recommendations.map((item, index) => (
+                      <RecommendationCard
+                        key={item.id || index}
+                        item={item}
+                        rank={index + 1}
+                      />
+                    ))}
+                  </div>
+                ) : hasSearched && !isLoading ? (
+                  <EmptyState
+                    location={preferences.location}
+                    cuisine={preferences.cuisine}
+                    budget={preferences.budget}
+                    onResetFilters={handleResetFilters}
+                    onWidenBudget={handleWidenBudget}
+                  />
+                ) : (
+                  <div className="ready-prompt-card">
+                    <span className="ready-icon">🍽️</span>
+                    <h4>Ready to Discover Your Next Feast?</h4>
+                    <p>
+                      Pick an iconic craving above (Biryani, South Indian, Pizza, etc.) or click{' '}
+                      <strong>Find My Perfect Spots</strong> to begin!
+                    </p>
                   </div>
                 )}
-              </div>
-
-              {/* Relaxed Filters Notification Banner */}
-              {recResponse?.relaxed_filters && recResponse.relaxed_filters.length > 0 && (
-                <div className="relaxed-notice-banner" role="alert">
-                  <span className="notice-icon">ℹ️</span>
-                  <span>
-                    Note: To find great matches, some constraints were broadened:{' '}
-                    <strong>{recResponse.relaxed_filters.join(', ')}</strong>.
-                  </span>
-                </div>
-              )}
-
-              {/* Heuristic Fallback Notice Banner */}
-              {recResponse?.source === 'heuristic' && recResponse.recommendations.length > 0 && (
-                <div className="heuristic-notice-banner" role="status">
-                  <span className="notice-icon">⚡</span>
-                  <span>
-                    <strong>Catalog Heuristic Ranking Active:</strong> Recommendations were ranked using deterministic catalog ratings and review votes while AI reasoning is offline.
-                  </span>
-                </div>
-              )}
-
-              {/* Summary line from engine */}
-              {recResponse?.summary && (
-                <div className="results-summary-quote">
-                  <span className="quote-mark">“</span>
-                  <span>{recResponse.summary}</span>
-                  <span className="quote-mark">”</span>
-                </div>
-              )}
-
-              {/* Error Banner */}
-              {errorMessage && (
-                <div className="results-error-card" role="alert">
-                  <div className="error-icon">⚠️</div>
-                  <div className="error-content">
-                    <h4>Unable to Load Recommendations</h4>
-                    <p>{errorMessage}</p>
-                    <button
-                      type="button"
-                      className="btn-retry"
-                      onClick={() => executeRecommendation(preferences)}
-                    >
-                      Retry Search
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Content States: Loading, Empty, Cards, or Ready State */}
-              {isLoading ? (
-                <LoadingSpinner />
-              ) : recResponse && recResponse.recommendations.length > 0 ? (
-                <div className="recommendations-grid">
-                  {recResponse.recommendations.map((item, index) => (
-                    <RecommendationCard
-                      key={item.id || index}
-                      item={item}
-                      rank={index + 1}
-                    />
-                  ))}
-                </div>
-              ) : hasSearched && !isLoading ? (
-                <EmptyState
-                  location={preferences.location}
-                  cuisine={preferences.cuisine}
-                  budget={preferences.budget}
-                  onResetFilters={handleResetFilters}
-                  onWidenBudget={handleWidenBudget}
-                />
-              ) : (
-                <div className="ready-prompt-card">
-                  <span className="ready-icon">🍽️</span>
-                  <h4>Ready to Discover Your Next Feast?</h4>
-                  <p>
-                    Pick an iconic craving above (Biryani, South Indian, Pizza, etc.) or click{' '}
-                    <strong>Find My Perfect Spots</strong> to begin!
-                  </p>
-                </div>
-              )}
-            </section>
+              </section>
+            </div>
           </div>
         </main>
 
