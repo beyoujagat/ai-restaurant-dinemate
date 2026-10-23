@@ -66,7 +66,8 @@ class RecommendService:
         Phase 7: Relaxation policy when candidate shortlist is empty:
         1. Query candidates matching strict preferences.
         2. If 0 candidates and extras specified: drop extra tags first.
-        3. If still 0 candidates: widen budget band by one step (e.g. low -> medium, medium -> high/low, high -> medium).
+        3. If still 0 candidates: widen budget band by one step (e.g. low -> medium, medium -> high/low).
+           Premium ('high') budget is never relaxed down to medium to protect the user's hard constraint.
         4. Return (candidates, relaxed_filters, effective_preference).
            Notice: original preference is never modified in the outer response.query.
         """
@@ -87,7 +88,8 @@ class RecommendService:
                 logger.info("Shortlist empty: dropped extras filter '%s' -> %d candidates", preference.extras, len(cand_no_extras))
                 return cand_no_extras, ["extras"], p_no_extras
 
-        # 3. Step 2: Then widen budget by one band
+        # 3. Step 2: Then widen budget by one band (low -> medium, medium -> high/low).
+        # Premium ('high') budget searches never automatically fall back to medium.
         current_budget = (preference.budget or "").strip().lower()
         widened_budgets: list[str] = []
         if current_budget == "low":
@@ -95,7 +97,7 @@ class RecommendService:
         elif current_budget == "medium":
             widened_budgets = ["high", "low"]
         elif current_budget == "high":
-            widened_budgets = ["medium"]
+            widened_budgets = []
 
         for b in widened_budgets:
             # Try with original preference extras first

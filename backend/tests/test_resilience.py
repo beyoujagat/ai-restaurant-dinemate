@@ -78,6 +78,57 @@ def test_relaxation_widens_budget_by_one_band():
     assert res.query.budget == "low"
 
 
+def test_relaxation_never_downgrades_high_budget_to_medium():
+    """
+    When no candidates exist for high / premium budget, relaxation must NOT
+    fall back to medium budget. It must return candidate_count=0 and an honest empty list.
+    """
+    mock_store = MagicMock(spec=CatalogStore)
+
+    def side_effect(pref, limit=None):
+        if pref.budget == "high":
+            return [], {"initial": 20, "sent_to_llm": 0}
+        elif pref.budget == "medium":
+            return FIXTURE_RESTAURANTS[:5], {"initial": 20, "sent_to_llm": 5}
+        return [], {"initial": 20, "sent_to_llm": 0}
+
+    mock_store.query_candidates.side_effect = side_effect
+    service = RecommendService(store=mock_store, enable_cache=False)
+
+    pref = Preference(
+        location="Banashankari",
+        budget="high",
+        cuisine="Cafe",
+    )
+
+    res = service.recommend(pref)
+
+    # Must NOT relax to medium; must return honest empty list
+    assert res.candidate_count == 0
+    assert len(res.recommendations) == 0
+    assert "budget" not in res.relaxed_filters
+    assert res.query.budget == "high"
+
+
+def test_real_catalog_high_budget_no_fallback_to_medium():
+    """
+    In the real catalog, searching for Cafe in Banashankari with high budget
+    has 0 candidates and must return empty recommendations rather than medium cafes.
+    """
+    service = RecommendService(enable_cache=False)
+    pref = Preference(
+        location="Banashankari",
+        budget="high",
+        cuisine="Cafe",
+        min_rating=4.0,
+    )
+    res = service.recommend(pref)
+    assert res.candidate_count == 0
+    assert len(res.recommendations) == 0
+    assert "budget" not in res.relaxed_filters
+    assert res.query.budget == "high"
+
+
 def test_relaxation_both_extras_and_budget():
     """
     When both extras and tight budget are over-constrained,
