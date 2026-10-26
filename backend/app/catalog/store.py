@@ -11,9 +11,10 @@ import logging
 import os
 from pathlib import Path
 import sqlite3
-from typing import Any
+from typing import Any, Sequence
 
 from app.catalog.filters import apply_candidate_filters
+from app.catalog.geo import find_nearby_neighbourhoods
 from app.domain.budget import get_budget_label
 from app.domain.models import Preference, Restaurant
 
@@ -155,36 +156,102 @@ class CatalogStore:
         self,
         preference: Preference,
         candidate_limit: int | None = None,
+        locations: Sequence[str] | None = None,
     ) -> tuple[list[Restaurant], dict[str, int]]:
         """
         Filter candidates matching the given preferences.
         Uses indexed SQL pre-filtering on location/budget where possible,
         then runs the full deterministic filter & pre-ranking pipeline.
+
+        If `locations` is provided, candidate retrieval pre-filters using
+        SQL 'WHERE LOWER(neighborhood) IN (?, ?, ...)' across the specified neighbourhoods
+        (excluding listed_city to prevent cross-field ambiguity per geo plan §1, §2).
         """
         sql_parts = ["SELECT * FROM restaurants WHERE 1=1"]
         params: list[Any] = []
 
-        # If location specified, pre-filter with indexed neighborhood OR listed_city
+        if locations is not None:
+            clean_locs = [loc.strip().lower() for loc in locations if loc and loc.strip()]
+            if not clean_locs:
+                return [], {"initial": 0, "sent_to_llm": 0}
+
+            placeholders = ",".join("?" for _ in clean_locs)
+            sql_parts.append(f"AND LOWER(neighborhood) IN ({placeholders})")
+            params.extend(clean_locs)
+
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(" ".join(sql_parts), params)
+                candidates = [self._row_to_restaurant(row) for row in cursor.fetchall()]
+
+            # Deterministic filter pipeline with allowed_locations
+            shortlist, counts = apply_candidate_filters(
+                candidates,
+                preference,
+                candidate_limit,
+                allowed_locations=locations,
+            )
+            return shortlist, counts
+
+        # If single location specified, pre-filter with indexed neighborhood strictly
         if preference.location:
             loc = preference.location.strip()
-            sql_parts.append("AND (LOWER(neighborhood) = LOWER(?) OR LOWER(listed_city) = LOWER(?))")
-            params.extend([loc, loc])
+            sql_parts.append("AND LOWER(neighborhood) = LOWER(?)")
+            params.append(loc)
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(" ".join(sql_parts), params)
             candidates = [self._row_to_restaurant(row) for row in cursor.fetchall()]
 
-        # If SQL pre-filter didn't match (e.g. partial substring location), fetch broader
+        # If SQL pre-filter didn't match (e.g. partial substring location), search neighborhood
         if not candidates and preference.location:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT * FROM restaurants WHERE LOWER(neighborhood) LIKE ? OR LOWER(listed_city) LIKE ?",
-                    (f"%{preference.location.lower()}%", f"%{preference.location.lower()}%"),
+                    "SELECT * FROM restaurants WHERE LOWER(neighborhood) LIKE ?",
+                    (f"%{preference.location.lower()}%",),
                 )
                 candidates = [self._row_to_restaurant(row) for row in cursor.fetchall()]
 
         # Run complete in-memory deterministic filter pipeline (order: location -> budget -> cuisine -> rating -> extras)
         shortlist, counts = apply_candidate_filters(candidates, preference, candidate_limit)
         return shortlist, counts
+
+    def query_candidates_by_locations(
+        self,
+        locations: Sequence[str],
+        preference: Preference,
+        candidate_limit: int | None = None,
+    ) -> tuple[list[Restaurant], dict[str, int]]:
+        """
+        Query and filter candidates across an explicit list of neighbourhoods.
+        Uses SQL 'WHERE LOWER(neighborhood) IN (...)'.
+        """
+        return self.query_candidates(
+            preference=preference,
+            candidate_limit=candidate_limit,
+            locations=locations,
+        )
+
+    def query_candidates_nearby(
+        self,
+        query_location: str,
+        radius_km: float,
+        preference: Preference,
+        candidate_limit: int | None = None,
+    ) -> tuple[list[Restaurant], dict[str, int]]:
+        """
+        Query candidates in neighbourhoods within radius_km of query_location.
+        Uses the Geo Engine to find verified nearby neighbourhoods, then queries them via SQL.
+        Returns empty results if query_location is unverified, missing, or a broad regional area.
+        """
+        nearby = find_nearby_neighbourhoods(query_location, radius_km)
+        if not nearby:
+            return [], {"initial": 0, "sent_to_llm": 0}
+
+        return self.query_candidates(
+            preference=preference,
+            candidate_limit=candidate_limit,
+            locations=nearby,
+        )

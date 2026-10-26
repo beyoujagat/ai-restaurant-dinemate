@@ -43,8 +43,9 @@ def test_relaxation_drops_extras_first():
 
 def test_relaxation_widens_budget_by_one_band():
     """
-    When no candidates exist for a tight budget (e.g. low budget in a location where
-    a cuisine is only available in medium budget), relaxation widens budget by one band.
+    When candidate shortlist is empty for a budget band, the initial search does NOT
+    silently widen budget. It returns candidate_count=0 and an honest empty list,
+    letting the user choose via the budget action in the EmptyState.
     """
     service = RecommendService()
 
@@ -71,9 +72,10 @@ def test_relaxation_widens_budget_by_one_band():
 
     res = service.recommend(pref)
 
-    assert res.candidate_count == 5
-    assert len(res.recommendations) == 5
-    assert "budget" in res.relaxed_filters
+    # Initial search must NOT silently widen budget
+    assert res.candidate_count == 0
+    assert len(res.recommendations) == 0
+    assert res.relaxed_filters == []
     # Original query still says low
     assert res.query.budget == "low"
 
@@ -112,12 +114,12 @@ def test_relaxation_never_downgrades_high_budget_to_medium():
 
 def test_real_catalog_high_budget_no_fallback_to_medium():
     """
-    In the real catalog, searching for Cafe in Banashankari with high budget
-    has 0 candidates and must return empty recommendations rather than medium cafes.
+    In the real catalog, searching for Cafe in Central Bangalore (broad area, no expansion)
+    with high budget has 0 candidates and must return empty recommendations rather than medium cafes.
     """
     service = RecommendService(enable_cache=False)
     pref = Preference(
-        location="Banashankari",
+        location="Central Bangalore",
         budget="high",
         cuisine="Cafe",
         min_rating=4.0,
@@ -132,7 +134,8 @@ def test_real_catalog_high_budget_no_fallback_to_medium():
 def test_relaxation_both_extras_and_budget():
     """
     When both extras and tight budget are over-constrained,
-    relaxation drops extras AND widens budget, recording both in relaxed_filters.
+    initial search does not silently widen budget. If initial search fails,
+    candidate_count is 0.
     """
     mock_store = MagicMock(spec=CatalogStore)
 
@@ -154,10 +157,10 @@ def test_relaxation_both_extras_and_budget():
 
     res = service.recommend(pref)
 
-    assert res.candidate_count == 3
-    assert len(res.recommendations) == 3
-    assert "extras" in res.relaxed_filters
-    assert "budget" in res.relaxed_filters
+    # Initial search must not silently widen budget
+    assert res.candidate_count == 0
+    assert len(res.recommendations) == 0
+    assert "budget" not in res.relaxed_filters
     # Original query intact
     assert res.query.extras == "impossible_decor"
     assert res.query.budget == "low"
@@ -275,4 +278,197 @@ def test_ui_copy_for_both_banners():
     # 3. API/network error toast
     assert "api-error-toast" in content
     assert "Connection Issue" in content
+
+
+def test_step5_frontend_empty_state_and_relaxation_copy():
+    """
+    Step 5 verification:
+    1. RecommendPage.tsx implements formatRelaxationNotice handling 5km/10km/budget/extras.
+    2. EmptyState.tsx removes hardcoded foodie hubs (Koramangala/Indiranagar/Jayanagar).
+    3. EmptyState.tsx incorporates dynamic budget logic and verified nearby locations within 5km/10km.
+    """
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[2]
+    rec_page = repo_root / "frontend" / "src" / "pages" / "RecommendPage.tsx"
+    empty_comp = repo_root / "frontend" / "src" / "components" / "EmptyState.tsx"
+
+    assert rec_page.exists()
+    assert empty_comp.exists()
+
+    rec_content = rec_page.read_text(encoding="utf-8")
+    empty_content = empty_comp.read_text(encoding="utf-8")
+
+    # Step 5 notice formatter
+    assert "formatRelaxationNotice" in rec_content
+    assert "location_expanded_5km" in rec_content
+    assert "location_expanded_10km" in rec_content
+    assert "expanded your search within 5 km" in rec_content
+    assert "expanded your search within 10 km" in rec_content
+    assert "widened your budget criteria" in rec_content
+    assert "relaxed optional amenity filters" in rec_content
+
+    # Hard-coded hub suggestions removed from EmptyState
+    assert "Try nearby foodie hubs like <strong>Koramangala</strong>" not in empty_content
+    assert "Koramangala, Indiranagar, or Jayanagar" not in empty_content
+
+    # Dynamic budget and nearby neighbourhood logic in EmptyState
+    assert "fetchNearbyNeighbourhoods" in empty_content
+    assert "radiusKm" in empty_content
+    assert "nearby_5km" in empty_content
+    assert "nearby_10km" in empty_content
+    assert "btn-nearby-chip" in empty_content
+    assert "Widen Budget to Medium/High" in empty_content
+    assert "Widen Budget to High" in empty_content
+    assert "Explore All Budgets" in empty_content
+
+
+# ============================================================================
+# Step 4: Geo-Proximity Relaxation Ladder Tests
+# ============================================================================
+
+def test_relaxation_ladder_geo_before_budget():
+    """
+    Zero candidates in strict location returns 0 candidates on initial search (include_nearby=False).
+    When user explicitly requests nearby search (include_nearby=True), it searches within 10 km
+    while preserving strict budget and cuisine.
+    """
+    service = RecommendService(enable_cache=False)
+    pref_initial = Preference(
+        location="Banashankari",
+        budget="high",
+        cuisine="Cafe",
+        min_rating=4.0,
+        include_nearby=False,
+    )
+    res_initial = service.recommend(pref_initial)
+    assert res_initial.candidate_count == 0
+    assert len(res_initial.recommendations) == 0
+
+    pref = Preference(
+        location="Banashankari",
+        budget="high",
+        cuisine="Cafe",
+        min_rating=4.0,
+        include_nearby=True,
+    )
+    res = service.recommend(pref)
+
+    assert res.candidate_count > 0
+    assert len(res.recommendations) > 0
+    assert res.relaxed_filters in (["location_expanded_5km"], ["location_expanded_10km"])
+    assert "within" in res.summary and "of Banashankari" in res.summary
+    assert res.query.budget == "high"
+    # Ensure recommended restaurants reflect actual locality in explanations
+    for rec in res.recommendations:
+        assert rec.estimated_cost is not None and rec.estimated_cost >= 801
+        assert rec.distance_km is not None
+
+
+def test_relaxation_ladder_10km_expansion():
+    """
+    Initial search returns 0 candidates when absent locally (include_nearby=False).
+    When user explicitly requests nearby search (include_nearby=True), triggers 10 km expansion.
+    E.g. In Domlur, Afghani cuisine is absent locally and within 5 km, but 3 venues
+    exist within 10 km. Returns relaxed_filters=['location_expanded_10km'].
+    """
+    service = RecommendService(enable_cache=False)
+    pref_initial = Preference(
+        location="Domlur",
+        cuisine="Afghani",
+        include_nearby=False,
+    )
+    res_initial = service.recommend(pref_initial)
+    assert res_initial.candidate_count == 0
+    assert len(res_initial.recommendations) == 0
+
+    pref = Preference(
+        location="Domlur",
+        cuisine="Afghani",
+        include_nearby=True,
+    )
+    res = service.recommend(pref)
+
+    assert res.candidate_count > 0
+    assert len(res.recommendations) > 0
+    assert res.relaxed_filters == ["location_expanded_10km"]
+    assert "within 10 km of Domlur" in res.summary
+    for rec in res.recommendations:
+        assert rec.distance_km is not None
+
+
+def test_relaxation_ladder_extras_before_geo():
+    """
+    Missing extra tag in strict location drops tag (Tier 1) before expanding radius.
+    E.g. In Banashankari, high budget with 'quick bite' has 0 results.
+    Dropping 'quick bite' in strict Banashankari finds 12 candidates locally,
+    so it should NOT expand to 5 km.
+    """
+    service = RecommendService(enable_cache=False)
+    pref = Preference(
+        location="Banashankari",
+        budget="high",
+        extras="quick bite",
+    )
+    res = service.recommend(pref)
+
+    assert res.candidate_count > 0
+    assert res.relaxed_filters == ["extras"]
+    assert "location_expanded_5km" not in res.relaxed_filters
+    assert "location_expanded_10km" not in res.relaxed_filters
+
+
+def test_relaxed_filters_all_tiers_mock():
+    """
+    Unit test using controlled mock store to verify exact relaxed_filters flag values
+    across tiers of the relaxation ladder:
+      - Strict / Tier 0: []
+      - Tier 1: ["extras"]
+      - Explicit nearby (include_nearby=True):
+        Tier 2: ["location_expanded_5km"]
+        Tier 3: ["location_expanded_5km", "extras"]
+        Tier 5: ["location_expanded_10km", "extras"]
+    """
+    sample_rest_5km = [r.model_copy(update={"neighborhood": "Domlur"}) for r in FIXTURE_RESTAURANTS[:2]]
+    sample_rest_10km = [r.model_copy(update={"neighborhood": "Bannerghatta Road"}) for r in FIXTURE_RESTAURANTS[:2]]
+
+    # Test Tier 2: 5 km expansion with strict extras (with include_nearby=True)
+    mock_store_t2 = MagicMock(spec=CatalogStore)
+    def se_t2(pref, limit=None, locations=None):
+        if locations and "Domlur" in locations:
+            return sample_rest_5km, {"initial": 2, "sent_to_llm": 2}
+        return [], {"initial": 0, "sent_to_llm": 0}
+    mock_store_t2.query_candidates.side_effect = se_t2
+
+    service_t2 = RecommendService(store=mock_store_t2, enable_cache=False)
+    pref_t2 = Preference(location="Indiranagar", budget="low", cuisine="Italian", include_nearby=True)
+    res_t2 = service_t2.recommend(pref_t2)
+    assert res_t2.relaxed_filters == ["location_expanded_5km"]
+
+    # Test Tier 3: 5 km expansion + drop extras (with include_nearby=True)
+    mock_store_t3 = MagicMock(spec=CatalogStore)
+    def se_t3(pref, limit=None, locations=None):
+        if locations and "Domlur" in locations and pref.extras is None:
+            return sample_rest_5km, {"initial": 2, "sent_to_llm": 2}
+        return [], {"initial": 0, "sent_to_llm": 0}
+    mock_store_t3.query_candidates.side_effect = se_t3
+
+    service_t3 = RecommendService(store=mock_store_t3, enable_cache=False)
+    pref_t3 = Preference(location="Indiranagar", budget="low", cuisine="Italian", extras="impossible_tag", include_nearby=True)
+    res_t3 = service_t3.recommend(pref_t3)
+    assert res_t3.relaxed_filters == ["location_expanded_5km", "extras"]
+
+    # Test Tier 5: 10 km expansion + drop extras (with include_nearby=True)
+    mock_store_t5 = MagicMock(spec=CatalogStore)
+    def se_t5(pref, limit=None, locations=None):
+        # Only matches when 10km radius queried (>40 locations) and extras dropped
+        if locations and len(locations) > 40 and pref.extras is None:
+            return sample_rest_10km, {"initial": 2, "sent_to_llm": 2}
+        return [], {"initial": 0, "sent_to_llm": 0}
+    mock_store_t5.query_candidates.side_effect = se_t5
+
+    service_t5 = RecommendService(store=mock_store_t5, enable_cache=False)
+    pref_t5 = Preference(location="Indiranagar", budget="low", cuisine="Italian", extras="impossible_tag", include_nearby=True)
+    res_t5 = service_t5.recommend(pref_t5)
+    assert res_t5.relaxed_filters == ["location_expanded_10km", "extras"]
 

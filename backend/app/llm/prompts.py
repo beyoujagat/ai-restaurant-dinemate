@@ -85,6 +85,7 @@ def build_user_prompt(
     preference: Preference,
     candidates: list[Restaurant],
     result_limit: int = 5,
+    relaxed_filters: list[str] | None = None,
 ) -> str:
     """
     Build the user-turn prompt containing preference context and candidate objects.
@@ -93,6 +94,7 @@ def build_user_prompt(
         preference: The user's dining preferences.
         candidates: Pre-filtered, pre-ranked candidate list (at most CANDIDATE_LIMIT).
         result_limit: Maximum number of items to request in the response.
+        relaxed_filters: Optional list of relaxed filter flags (e.g. location_expanded_5km).
 
     Returns:
         A formatted string ready to send as the user message.
@@ -111,9 +113,24 @@ def build_user_prompt(
 
     candidate_objects = [_pack_candidate(r) for r in candidates]
 
+    note_lines: list[str] = []
+    if relaxed_filters and preference.location:
+        if "location_expanded_5km" in relaxed_filters:
+            note_lines.append(
+                f"Note: Candidate list was expanded to nearby neighbourhoods within 5 km of {preference.location}. "
+                "Acknowledge the restaurant's actual locality accurately."
+            )
+        elif "location_expanded_10km" in relaxed_filters:
+            note_lines.append(
+                f"Note: Candidate list was expanded to nearby neighbourhoods within 10 km of {preference.location}. "
+                "Acknowledge the restaurant's actual locality accurately."
+            )
+
+    notes_block = f"\n\n{' '.join(note_lines)}" if note_lines else ""
+
     return (
         f"DINER PREFERENCES:\n{json.dumps(pref_block, ensure_ascii=False, indent=2)}\n\n"
         f"CANDIDATES ({len(candidates)} restaurants):\n"
         f"{json.dumps(candidate_objects, ensure_ascii=False, indent=2)}\n\n"
-        f"Return the top {result_limit} restaurants ranked by suitability as JSON."
+        f"Return the top {result_limit} restaurants ranked by suitability as JSON.{notes_block}"
     )

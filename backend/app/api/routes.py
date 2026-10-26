@@ -29,6 +29,34 @@ def get_meta_options() -> dict:
     return store.get_meta_options()
 
 
+@router.get("/meta/nearby", summary="Nearby verified neighbourhoods")
+def get_nearby_neighbourhoods(
+    location: str,
+    radius_km: float = 10.0,
+) -> dict[str, Any]:
+    """
+    Lookup verified nearby neighbourhoods within radius_km (default 10 km),
+    categorized by 5 km and requested radius bands for UI suggestions.
+    """
+    if radius_km <= 0:
+        return {
+            "location": location,
+            "nearby_5km": [],
+            "nearby_10km": [],
+        }
+
+    from app.catalog.geo import find_nearby_neighbourhoods_with_distance
+    requested_nearby = find_nearby_neighbourhoods_with_distance(location, radius_km=radius_km)
+    nearby_items = [{"name": name, "distance_km": dist} for name, dist in requested_nearby]
+    nearby_5km = [item for item in nearby_items if item["distance_km"] <= 5.0]
+
+    return {
+        "location": location,
+        "nearby_5km": nearby_5km,
+        "nearby_10km": nearby_items,
+    }
+
+
 @router.post("/recommend", response_model=RecommendationResponse)
 def post_recommend(preference: Preference, request: Request) -> RecommendationResponse:
     request_id = str(uuid.uuid4())[:8]

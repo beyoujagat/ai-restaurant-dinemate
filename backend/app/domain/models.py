@@ -25,6 +25,10 @@ class Preference(BaseModel):
         default=None,
         description="Additional text or tags, e.g. 'family-friendly', 'quick bites', 'romantic'"
     )
+    include_nearby: bool = Field(
+        default=False,
+        description="Whether to search nearby neighbourhoods within 10 km (explicit user action)"
+    )
 
     @field_validator("location", "cuisine", "extras", mode="before")
     @classmethod
@@ -93,6 +97,10 @@ class RecommendationItem(BaseModel):
     votes: int = 0
     estimated_cost: int | None = None
     neighborhood: str = ""
+    distance_km: float | None = Field(
+        default=None,
+        description="Approximate distance in km from search center if returned from nearby expansion"
+    )
     explanation: str = Field(description="Natural-language justification for why this fits")
     vibe_tag: str | None = Field(
         default=None,

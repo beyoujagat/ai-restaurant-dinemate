@@ -121,6 +121,21 @@ class TestPromptPacking:
         prompt = build_user_prompt(pref, [rest], result_limit=5)
         assert "123 Main St" not in prompt
 
+    def test_build_user_prompt_with_location_expansion(self):
+        """Ensure relaxation context note is appended when location expansion occurs."""
+        rest = _make_restaurant()
+        pref = _make_preference(location="Indiranagar")
+
+        # 5 km expansion
+        prompt_5km = build_user_prompt(pref, [rest], result_limit=5, relaxed_filters=["location_expanded_5km"])
+        assert "expanded to nearby neighbourhoods within 5 km of Indiranagar" in prompt_5km
+        assert "Acknowledge the restaurant's actual locality accurately" in prompt_5km
+
+        # 10 km expansion
+        prompt_10km = build_user_prompt(pref, [rest], result_limit=5, relaxed_filters=["location_expanded_10km"])
+        assert "expanded to nearby neighbourhoods within 10 km of Indiranagar" in prompt_10km
+        assert "Acknowledge the restaurant's actual locality accurately" in prompt_10km
+
 
 # ---------------------------------------------------------------------------
 # Mapper — hallucinated IDs dropped / catalog values preserved

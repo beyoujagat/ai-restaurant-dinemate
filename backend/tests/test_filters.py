@@ -13,7 +13,9 @@ from app.catalog.filters import (
     filter_by_cuisine,
     filter_by_extras,
     filter_by_location,
+    filter_by_locations,
     filter_by_min_rating,
+    filter_by_nearby_locations,
     score_candidate,
 )
 from app.catalog.store import CatalogNotFoundError, CatalogStore
@@ -115,16 +117,20 @@ def test_preference_validation_invalid_rating():
 # 3. Filters in Isolation
 # ============================================================================
 
-def test_filter_by_location_neighborhood_and_listed_city():
-    # Match neighborhood
+def test_filter_by_location_strict_neighborhood():
+    # Match neighborhood strictly
     bsk = filter_by_location(FIXTURE_RESTAURANTS, "Banashankari")
     assert len(bsk) == 10
-    assert all("Banashankari" in (r.neighborhood + r.listed_city) for r in bsk)
+    assert all(r.neighborhood == "Banashankari" for r in bsk)
 
-    # Match listed_city (e.g. Brigade Road lists Church Street restaurants)
+    # Church Street restaurants are matched for "Church Street"
+    church = filter_by_location(FIXTURE_RESTAURANTS, "Church Street")
+    assert len(church) == 3
+    assert all(r.neighborhood == "Church Street" for r in church)
+
+    # Exclude listed_city: searching "Brigade Road" does NOT return Church Street restaurants
     brigade = filter_by_location(FIXTURE_RESTAURANTS, "Brigade Road")
-    assert len(brigade) >= 3
-    assert any(r.neighborhood == "Church Street" for r in brigade)
+    assert not any(r.neighborhood == "Church Street" for r in brigade)
 
     # Case-insensitivity
     bsk_lower = filter_by_location(FIXTURE_RESTAURANTS, "banashankari")
@@ -344,3 +350,294 @@ def test_catalog_store_missing_db(tmp_path):
     fake_path = tmp_path / "non_existent.sqlite"
     with pytest.raises(CatalogNotFoundError):
         CatalogStore(fake_path)
+
+
+# ============================================================================
+# Step 3: Geo-Proximity Filter & Multi-Neighbourhood Tests
+# ============================================================================
+
+def test_filter_by_locations():
+    """filter_by_locations matches on neighborhood and ignores listed_city."""
+    r_domlur = Restaurant(
+        id="test_domlur_1234",
+        name="Domlur Cafe",
+        address="Domlur, Bangalore",
+        neighborhood="Domlur",
+        listed_city="Indiranagar",
+        cuisines=["Cafe"],
+        cuisines_raw="Cafe",
+        cost_for_two=300,
+        rating=4.2,
+        votes=100,
+        rest_types=["Cafe"],
+        listed_types=["Dine-out"],
+        online_order=False,
+        book_table=False,
+        dishes_liked=[],
+        review_snippets=[],
+        url="",
+    )
+    r_indiranagar = Restaurant(
+        id="test_indira_1234",
+        name="Indira Kitchen",
+        address="100ft Road, Indiranagar",
+        neighborhood="Indiranagar",
+        listed_city="Indiranagar",
+        cuisines=["South Indian"],
+        cuisines_raw="South Indian",
+        cost_for_two=250,
+        rating=4.5,
+        votes=200,
+        rest_types=["Quick Bites"],
+        listed_types=["Dine-out"],
+        online_order=True,
+        book_table=False,
+        dishes_liked=[],
+        review_snippets=[],
+        url="",
+    )
+    r_whitefield = Restaurant(
+        id="test_wf_12345678",
+        name="Whitefield Diner",
+        address="ITPL, Whitefield",
+        neighborhood="Whitefield",
+        listed_city="Whitefield",
+        cuisines=["Continental"],
+        cuisines_raw="Continental",
+        cost_for_two=800,
+        rating=4.0,
+        votes=50,
+        rest_types=["Casual Dining"],
+        listed_types=["Dine-out"],
+        online_order=False,
+        book_table=False,
+        dishes_liked=[],
+        review_snippets=[],
+        url="",
+    )
+    pool = [r_domlur, r_indiranagar, r_whitefield]
+
+    # Matching multiple locations
+    matched = filter_by_locations(pool, ["Domlur", "Whitefield"])
+    assert len(matched) == 2
+    assert r_domlur in matched
+    assert r_whitefield in matched
+    assert r_indiranagar not in matched
+
+    # Case-insensitive
+    matched_ci = filter_by_locations(pool, ["domlur"])
+    assert matched_ci == [r_domlur]
+
+    # Listed city alone must NOT match (per geo plan boundary)
+    r_editorial = Restaurant(
+        id="test_edit_123456",
+        name="Editorial Loc",
+        address="MG Road",
+        neighborhood="MG Road",
+        listed_city="Domlur",
+        cuisines=[],
+        cuisines_raw="",
+        cost_for_two=500,
+        rating=4.0,
+        votes=10,
+        rest_types=[],
+        listed_types=[],
+        online_order=False,
+        book_table=False,
+        dishes_liked=[],
+        review_snippets=[],
+        url="",
+    )
+    assert filter_by_locations([r_editorial], ["Domlur"]) == []
+
+    # Empty locations returns []
+    assert filter_by_locations(pool, []) == []
+    assert filter_by_locations(pool, None) == []
+
+
+def test_filter_by_nearby_locations():
+    """filter_by_nearby_locations looks up nearby neighbourhoods and filters strictly on neighborhood."""
+    r_domlur = Restaurant(
+        id="test_domlur_1234",
+        name="Domlur Cafe",
+        address="Domlur",
+        neighborhood="Domlur",
+        listed_city="Indiranagar",
+        cuisines=["Cafe"],
+        cuisines_raw="Cafe",
+        cost_for_two=300,
+        rating=4.2,
+        votes=100,
+        rest_types=["Cafe"],
+        listed_types=["Dine-out"],
+        online_order=False,
+        book_table=False,
+        dishes_liked=[],
+        review_snippets=[],
+        url="",
+    )
+    r_indiranagar = Restaurant(
+        id="test_indira_1234",
+        name="Indira Kitchen",
+        address="Indiranagar",
+        neighborhood="Indiranagar",
+        listed_city="Indiranagar",
+        cuisines=["South Indian"],
+        cuisines_raw="South Indian",
+        cost_for_two=250,
+        rating=4.5,
+        votes=200,
+        rest_types=["Quick Bites"],
+        listed_types=["Dine-out"],
+        online_order=True,
+        book_table=False,
+        dishes_liked=[],
+        review_snippets=[],
+        url="",
+    )
+    pool = [r_domlur, r_indiranagar]
+
+    # Querying Indiranagar within 5 km should find Domlur (~1.2 km away)
+    # but NOT Indiranagar itself (query location is excluded)
+    nearby_res = filter_by_nearby_locations(pool, query_location="Indiranagar", radius_km=5.0)
+    assert nearby_res == [r_domlur]
+
+    # Broad area or unverified area returns []
+    assert filter_by_nearby_locations(pool, query_location="Central Bangalore", radius_km=10.0) == []
+    assert filter_by_nearby_locations(pool, query_location=None, radius_km=5.0) == []
+    assert filter_by_nearby_locations(pool, query_location="Indiranagar", radius_km=0.0) == []
+
+
+def test_apply_candidate_filters_with_allowed_locations():
+    """apply_candidate_filters filters by allowed_locations when provided."""
+    r_domlur = Restaurant(
+        id="test_domlur_1234",
+        name="Domlur Diner",
+        address="Domlur",
+        neighborhood="Domlur",
+        listed_city="MG Road",
+        cuisines=["Italian"],
+        cuisines_raw="Italian",
+        cost_for_two=350,
+        rating=4.2,
+        votes=100,
+        rest_types=["Quick Bites"],
+        listed_types=["Dine-out"],
+        online_order=False,
+        book_table=False,
+        dishes_liked=[],
+        review_snippets=[],
+        url="",
+    )
+    r_indiranagar = Restaurant(
+        id="test_indira_1234",
+        name="Indira Pasta",
+        address="Indiranagar",
+        neighborhood="Indiranagar",
+        listed_city="Indiranagar",
+        cuisines=["Italian"],
+        cuisines_raw="Italian",
+        cost_for_two=350,
+        rating=4.5,
+        votes=200,
+        rest_types=["Quick Bites"],
+        listed_types=["Dine-out"],
+        online_order=True,
+        book_table=False,
+        dishes_liked=[],
+        review_snippets=[],
+        url="",
+    )
+    pool = [r_domlur, r_indiranagar]
+
+    # User's search center is Indiranagar, but allowed_locations is expanded to Domlur
+    pref = Preference(
+        location="Indiranagar",
+        budget="low",
+        cuisine="Italian",
+    )
+    shortlist, counts = apply_candidate_filters(
+        pool,
+        pref,
+        allowed_locations=["Domlur"],
+    )
+    assert len(shortlist) == 1
+    assert shortlist[0].id == r_domlur.id
+    assert counts["after_location"] == 1
+
+
+def test_catalog_store_query_candidates_multi_location():
+    """CatalogStore.query_candidates correctly queries multiple neighbourhoods using SQL IN (...)."""
+    store = CatalogStore()
+
+    pref = Preference(
+        budget="medium",
+        cuisine="North Indian",
+        min_rating=4.0,
+    )
+    # Query across two adjacent neighbourhoods
+    candidates, counts = store.query_candidates(
+        preference=pref,
+        locations=["Domlur", "Indiranagar"],
+    )
+    assert len(candidates) > 0
+    for r in candidates:
+        assert r.neighborhood.lower() in {"domlur", "indiranagar"}
+        assert r.cost_for_two is not None and 401 <= r.cost_for_two <= 800
+        assert any("north indian" in c.lower() for c in r.cuisines)
+
+    # Empty locations returns empty
+    empty_cand, empty_counts = store.query_candidates(preference=pref, locations=[])
+    assert empty_cand == []
+    assert empty_counts["initial"] == 0
+
+
+def test_catalog_store_query_candidates_nearby():
+    """CatalogStore.query_candidates_nearby queries candidates in nearby neighbourhoods."""
+    store = CatalogStore()
+
+    pref = Preference(
+        budget="medium",
+        cuisine="North Indian",
+    )
+    # 5 km expansion from Indiranagar should find candidates in adjacent neighbourhoods (like Domlur)
+    candidates, counts = store.query_candidates_nearby(
+        query_location="Indiranagar",
+        radius_km=5.0,
+        preference=pref,
+    )
+    assert len(candidates) > 0
+    # Returned candidates must NOT be from Indiranagar itself (nearby only)
+    for r in candidates:
+        assert r.neighborhood.lower() != "indiranagar"
+
+    # Broad regional zone returns empty
+    broad_cand, _ = store.query_candidates_nearby(
+        query_location="Central Bangalore",
+        radius_km=10.0,
+        preference=pref,
+    )
+    assert broad_cand == []
+
+
+def test_strict_btm_search_returns_no_other_neighbourhoods():
+    """
+    Asserts that searching for BTM in the real catalog returns ONLY restaurants from BTM,
+    and NEVER restaurants whose physical neighborhood is Koramangala 5th Block, Jayanagar, etc.
+    even if their listed_city was BTM in the raw dataset.
+    """
+    store = CatalogStore()
+    pref = Preference(
+        location="BTM",
+        budget="medium",
+        cuisine="Biryani",
+        min_rating=4.0,
+    )
+    candidates, _ = store.query_candidates(pref, candidate_limit=10)
+    assert len(candidates) > 0
+    for r in candidates:
+        assert r.neighborhood == "BTM"
+        assert r.neighborhood != "Koramangala 5th Block"
+        assert r.neighborhood != "Jayanagar"
+        assert r.rating is not None and r.rating >= 4.0
+        assert r.cost_for_two is not None and 401 <= r.cost_for_two <= 800

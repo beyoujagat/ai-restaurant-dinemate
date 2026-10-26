@@ -19,6 +19,8 @@ pyyaml-*.tar.gz
 # Generated catalog (rebuild with ingest)
 data/processed/*.sqlite
 data/processed/*.parquet
+data/processed/*.db
+*.db
 data/raw/*
 !data/raw/.gitkeep
 

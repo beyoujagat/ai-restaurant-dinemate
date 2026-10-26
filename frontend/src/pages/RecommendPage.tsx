@@ -19,6 +19,28 @@ import { RecommendationCard } from '../components/RecommendationCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { EmptyState } from '../components/EmptyState';
 
+/**
+ * Format relaxation flags into user-friendly banner copy (Step 5 / Plan §7).
+ */
+const formatRelaxationNotice = (relaxed: string[], queryLoc?: string): string => {
+  const parts: string[] = [];
+  if (relaxed.includes('location_expanded_10km')) {
+    parts.push(`expanded your search within 10 km of ${queryLoc || 'your area'}`);
+  } else if (relaxed.includes('location_expanded_5km')) {
+    parts.push(`expanded your search within 5 km of ${queryLoc || 'your area'}`);
+  }
+  if (relaxed.includes('budget')) {
+    parts.push('widened your budget criteria');
+  }
+  if (relaxed.includes('extras')) {
+    parts.push('relaxed optional amenity filters');
+  }
+  if (parts.length === 0) {
+    return 'Note: To find great matches, some constraints were broadened.';
+  }
+  return `Note: To find great matches, we ${parts.join(' and ')}.`;
+};
+
 export const RecommendPage: React.FC = () => {
   // Modal State
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
@@ -141,7 +163,7 @@ export const RecommendPage: React.FC = () => {
   };
 
   const handlePreferenceChange = (updated: RecommendationRequest) => {
-    setPreferences(updated);
+    setPreferences({ ...updated, include_nearby: false });
     if (validationError) {
       const err = validatePreferences(updated);
       setValidationError(err);
@@ -158,6 +180,7 @@ export const RecommendPage: React.FC = () => {
     const updated: RecommendationRequest = {
       ...preferences,
       cuisine: cuisineKeyword,
+      include_nearby: false,
     };
     setPreferences(updated);
     const error = validatePreferences(updated);
@@ -179,7 +202,7 @@ export const RecommendPage: React.FC = () => {
       return;
     }
     setValidationError(null);
-    executeRecommendation(preferences);
+    executeRecommendation({ ...preferences, include_nearby: false });
   };
 
   // Explicit User Action: Navigation item click
@@ -238,12 +261,54 @@ export const RecommendPage: React.FC = () => {
   };
 
   // Empty state recovery handlers
-  const handleWidenBudget = () => {
+  const handleWidenBudget = (targetBudget?: 'medium' | 'high' | '') => {
+    let nextBudget: 'low' | 'medium' | 'high' | '' = 'medium';
+    if (targetBudget !== undefined) {
+      nextBudget = targetBudget;
+    } else if (preferences.budget === 'low') {
+      nextBudget = 'medium';
+    } else if (preferences.budget === 'medium') {
+      nextBudget = 'high';
+    } else {
+      nextBudget = '';
+    }
     const updated: RecommendationRequest = {
       ...preferences,
-      budget: 'high',
+      budget: nextBudget,
+      include_nearby: false,
     };
     setPreferences(updated);
+    setValidationError(null);
+    executeRecommendation(updated);
+  };
+
+  const handleSearchNearby = () => {
+    const updated: RecommendationRequest = {
+      ...preferences,
+      include_nearby: true,
+    };
+    setPreferences(updated);
+    setValidationError(null);
+    executeRecommendation(updated);
+  };
+
+  const handleClearCuisine = () => {
+    const updated: RecommendationRequest = {
+      ...preferences,
+      cuisine: '',
+    };
+    setPreferences(updated);
+    setValidationError(null);
+    executeRecommendation(updated);
+  };
+
+  const handleSelectNearbyLocation = (newLocation: string) => {
+    const updated: RecommendationRequest = {
+      ...preferences,
+      location: newLocation,
+    };
+    setPreferences(updated);
+    setValidationError(null);
     executeRecommendation(updated);
   };
 
@@ -258,6 +323,7 @@ export const RecommendPage: React.FC = () => {
     };
     setPreferences(updated);
     setTopSearchTerm('');
+    setValidationError(null);
     executeRecommendation(updated);
   };
 
@@ -401,8 +467,10 @@ export const RecommendPage: React.FC = () => {
                     <div className="relaxed-notice-banner" role="alert">
                       <span className="notice-icon">ℹ️</span>
                       <span>
-                        Note: To find great matches, some constraints were broadened:{' '}
-                        <strong>{recResponse.relaxed_filters.join(', ')}</strong>.
+                        {formatRelaxationNotice(
+                          recResponse.relaxed_filters,
+                          preferences.location || recResponse.query?.location
+                        )}
                       </span>
                     </div>
                   )}
@@ -465,6 +533,9 @@ export const RecommendPage: React.FC = () => {
                     budget={preferences.budget}
                     onResetFilters={handleResetFilters}
                     onWidenBudget={handleWidenBudget}
+                    onSelectLocation={handleSelectNearbyLocation}
+                    onSearchNearby={handleSearchNearby}
+                    onClearCuisine={handleClearCuisine}
                   />
                 ) : (
                   <div className="ready-prompt-card">

@@ -1317,6 +1317,12 @@
   font-weight: 600;
 }
 
+.chip-distance {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
 .card-rating-badge {
   margin-left: auto;
   display: flex;
@@ -1705,6 +1711,84 @@
 
 .btn-empty-secondary:hover {
   background: var(--bg-surface-hover);
+}
+
+.btn-empty-nearby {
+  background: #FFF7ED;
+  border: 1.5px solid #F97316;
+  color: #EA580C;
+}
+
+.btn-empty-nearby:hover {
+  background: #FFEDD5;
+  color: #C2410C;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+}
+
+/* Empty State Nearby Neighbourhood Suggestions */
+.empty-nearby-section {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.empty-nearby-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-nearby-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: default;
+  user-select: text;
+}
+
+.nearby-pin {
+  font-size: 11px;
+}
+
+.nearby-name {
+  font-weight: 700;
+}
+
+.nearby-dist-tag {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background-color: var(--bg-surface);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+}
+
+.radius-toggle-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+  background: transparent;
+  border: 1px dashed var(--color-primary);
+  color: var(--color-primary);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.radius-toggle-btn:hover {
+  background-color: var(--color-primary-subtle);
 }
 
 /* --------------------------------------------------------------------------

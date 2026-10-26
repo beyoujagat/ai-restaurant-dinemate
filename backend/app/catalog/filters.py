@@ -21,6 +21,7 @@ import os
 import re
 from typing import Sequence
 
+from app.catalog.geo import find_nearby_neighbourhoods
 from app.domain.budget import is_in_budget
 from app.domain.models import Preference, Restaurant
 
@@ -41,25 +42,59 @@ def get_candidate_limit() -> int:
 
 def filter_by_location(restaurants: Sequence[Restaurant], location: str | None) -> list[Restaurant]:
     """
-    Match location against neighborhood OR listed_city (case-insensitive).
+    Match location strictly against neighborhood (case-insensitive).
+    Operates strictly on the 'neighborhood' field (listed_city is excluded to prevent
+    cross-neighbourhood contamination per geo plan §1, §2).
     """
     if not location or not location.strip():
         return list(restaurants)
 
     norm_loc = location.strip().lower()
-    results: list[Restaurant] = []
+    return [
+        r for r in restaurants
+        if (r.neighborhood or "").strip().lower() == norm_loc
+    ]
 
-    for r in restaurants:
-        r_neigh = (r.neighborhood or "").strip().lower()
-        r_city = (r.listed_city or "").strip().lower()
 
-        # Match exact equality or containment
-        if norm_loc == r_neigh or norm_loc == r_city:
-            results.append(r)
-        elif norm_loc in r_neigh or norm_loc in r_city:
-            results.append(r)
+def filter_by_locations(
+    restaurants: Sequence[Restaurant],
+    locations: Sequence[str] | None,
+) -> list[Restaurant]:
+    """
+    Filter restaurants whose neighborhood is in the provided list of locations (case-insensitive).
+    Operates strictly on the 'neighborhood' field (listed_city is excluded per geo plan §1, §2).
+    """
+    if not locations:
+        return []
 
-    return results
+    norm_locs = {loc.strip().lower() for loc in locations if loc and loc.strip()}
+    if not norm_locs:
+        return []
+
+    return [
+        r for r in restaurants
+        if (r.neighborhood or "").strip().lower() in norm_locs
+    ]
+
+
+def filter_by_nearby_locations(
+    restaurants: Sequence[Restaurant],
+    query_location: str | None,
+    radius_km: float,
+) -> list[Restaurant]:
+    """
+    Filter restaurants located in neighbourhoods within radius_km of query_location.
+    Excludes the query location itself per the geo-proximity plan.
+    Operates strictly on the 'neighborhood' field (listed_city is excluded).
+    """
+    if not query_location or not query_location.strip() or radius_km <= 0:
+        return []
+
+    nearby = find_nearby_neighbourhoods(query_location.strip(), radius_km)
+    if not nearby:
+        return []
+
+    return filter_by_locations(restaurants, nearby)
 
 
 def filter_by_budget(restaurants: Sequence[Restaurant], budget_band: str | None) -> list[Restaurant]:
@@ -190,16 +225,24 @@ def apply_candidate_filters(
     restaurants: Sequence[Restaurant],
     preference: Preference,
     candidate_limit: int | None = None,
+    allowed_locations: Sequence[str] | None = None,
 ) -> tuple[list[Restaurant], dict[str, int]]:
     """
     Applies hard filters in order, calculates scores, and returns top candidates.
     Also returns stage count metrics for observability.
+
+    If `allowed_locations` is provided, candidate filtering matches restaurants
+    whose neighborhood is in `allowed_locations` instead of matching against
+    `preference.location` (which may be the origin search center).
     """
     limit = candidate_limit or get_candidate_limit()
     counts: dict[str, int] = {"initial": len(restaurants)}
 
     # 1. Location filter
-    stage = filter_by_location(restaurants, preference.location)
+    if allowed_locations is not None:
+        stage = filter_by_locations(restaurants, allowed_locations)
+    else:
+        stage = filter_by_location(restaurants, preference.location)
     counts["after_location"] = len(stage)
 
     # 2. Budget filter

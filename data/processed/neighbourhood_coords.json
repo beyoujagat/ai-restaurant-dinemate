@@ -1,0 +1,561 @@
+{
+  "__version__": "1.0",
+  "Banashankari": {
+    "lat": 12.9278,
+    "lng": 77.5566,
+    "verified": true,
+    "broad_area": false
+  },
+  "Banaswadi": {
+    "lat": 13.0142,
+    "lng": 77.6519,
+    "verified": true,
+    "broad_area": false
+  },
+  "Bannerghatta Road": {
+    "lat": 12.9475,
+    "lng": 77.6024,
+    "verified": true,
+    "broad_area": false
+  },
+  "Basavanagudi": {
+    "lat": 12.9417,
+    "lng": 77.5755,
+    "verified": true,
+    "broad_area": false
+  },
+  "Basaveshwara Nagar": {
+    "lat": 12.9913,
+    "lng": 77.5384,
+    "verified": true,
+    "broad_area": false
+  },
+  "Bellandur": {
+    "lat": 12.932,
+    "lng": 77.6843,
+    "verified": true,
+    "broad_area": false
+  },
+  "Bommanahalli": {
+    "lat": 12.9035,
+    "lng": 77.623,
+    "verified": true,
+    "broad_area": false
+  },
+  "Brigade Road": {
+    "lat": 12.9683,
+    "lng": 77.6061,
+    "verified": true,
+    "broad_area": false
+  },
+  "Brookefield": {
+    "lat": 12.9652,
+    "lng": 77.7179,
+    "verified": true,
+    "broad_area": false
+  },
+  "BTM": {
+    "lat": 12.914,
+    "lng": 77.6103,
+    "verified": true,
+    "broad_area": false
+  },
+  "Central Bangalore": {
+    "lat": 12.973,
+    "lng": 77.5805,
+    "verified": false,
+    "broad_area": true
+  },
+  "Church Street": {
+    "lat": 12.9755,
+    "lng": 77.6027,
+    "verified": true,
+    "broad_area": false
+  },
+  "City Market": {
+    "lat": 12.9657,
+    "lng": 77.5763,
+    "verified": true,
+    "broad_area": false
+  },
+  "Commercial Street": {
+    "lat": 12.9822,
+    "lng": 77.6083,
+    "verified": true,
+    "broad_area": false
+  },
+  "Cunningham Road": {
+    "lat": 12.9871,
+    "lng": 77.595,
+    "verified": true,
+    "broad_area": false
+  },
+  "CV Raman Nagar": {
+    "lat": 12.9856,
+    "lng": 77.6681,
+    "verified": true,
+    "broad_area": false
+  },
+  "Domlur": {
+    "lat": 12.9625,
+    "lng": 77.6382,
+    "verified": true,
+    "broad_area": false
+  },
+  "East Bangalore": {
+    "lat": 12.9288,
+    "lng": 77.6287,
+    "verified": false,
+    "broad_area": true
+  },
+  "Ejipura": {
+    "lat": 12.9452,
+    "lng": 77.6275,
+    "verified": true,
+    "broad_area": false
+  },
+  "Electronic City": {
+    "lat": 12.8488,
+    "lng": 77.6483,
+    "verified": true,
+    "broad_area": false
+  },
+  "Frazer Town": {
+    "lat": 12.9976,
+    "lng": 77.6137,
+    "verified": true,
+    "broad_area": false
+  },
+  "HBR Layout": {
+    "lat": 13.032,
+    "lng": 77.6281,
+    "verified": true,
+    "broad_area": false
+  },
+  "Hebbal": {
+    "lat": 13.0382,
+    "lng": 77.5919,
+    "verified": true,
+    "broad_area": false
+  },
+  "Hennur": {
+    "lat": 13.0371,
+    "lng": 77.6414,
+    "verified": true,
+    "broad_area": false
+  },
+  "Hosur Road": {
+    "lat": 12.9655,
+    "lng": 77.6068,
+    "verified": true,
+    "broad_area": false
+  },
+  "HSR": {
+    "lat": 12.9116,
+    "lng": 77.6389,
+    "verified": true,
+    "broad_area": false
+  },
+  "Indiranagar": {
+    "lat": 12.9733,
+    "lng": 77.6405,
+    "verified": true,
+    "broad_area": false
+  },
+  "Infantry Road": {
+    "lat": 12.9803,
+    "lng": 77.6042,
+    "verified": true,
+    "broad_area": false
+  },
+  "ITPL Main Road, Whitefield": {
+    "lat": 12.987,
+    "lng": 77.7364,
+    "verified": true,
+    "broad_area": false
+  },
+  "Jakkur": {
+    "lat": 13.0785,
+    "lng": 77.6069,
+    "verified": true,
+    "broad_area": false
+  },
+  "Jalahalli": {
+    "lat": 13.0394,
+    "lng": 77.5197,
+    "verified": true,
+    "broad_area": false
+  },
+  "Jayanagar": {
+    "lat": 12.9293,
+    "lng": 77.5824,
+    "verified": true,
+    "broad_area": false
+  },
+  "Jeevan Bhima Nagar": {
+    "lat": 12.9678,
+    "lng": 77.6568,
+    "verified": true,
+    "broad_area": false
+  },
+  "JP Nagar": {
+    "lat": 12.9097,
+    "lng": 77.5866,
+    "verified": true,
+    "broad_area": false
+  },
+  "Kaggadasapura": {
+    "lat": 12.9812,
+    "lng": 77.6746,
+    "verified": true,
+    "broad_area": false
+  },
+  "Kalyan Nagar": {
+    "lat": 13.0221,
+    "lng": 77.6403,
+    "verified": true,
+    "broad_area": false
+  },
+  "Kammanahalli": {
+    "lat": 13.0149,
+    "lng": 77.6382,
+    "verified": true,
+    "broad_area": false
+  },
+  "Kanakapura Road": {
+    "lat": 12.876,
+    "lng": 77.5441,
+    "verified": true,
+    "broad_area": false
+  },
+  "Kengeri": {
+    "lat": 12.9177,
+    "lng": 77.4838,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala": {
+    "lat": 12.9357,
+    "lng": 77.6241,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala 1st Block": {
+    "lat": 12.9277,
+    "lng": 77.6328,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala 2nd Block": {
+    "lat": 12.9244,
+    "lng": 77.6242,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala 3rd Block": {
+    "lat": 12.9283,
+    "lng": 77.6254,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala 4th Block": {
+    "lat": 12.9328,
+    "lng": 77.6294,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala 5th Block": {
+    "lat": 12.9348,
+    "lng": 77.619,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala 6th Block": {
+    "lat": 12.939,
+    "lng": 77.6238,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala 7th Block": {
+    "lat": 12.9365,
+    "lng": 77.6135,
+    "verified": true,
+    "broad_area": false
+  },
+  "Koramangala 8th Block": {
+    "lat": 12.9409,
+    "lng": 77.6173,
+    "verified": true,
+    "broad_area": false
+  },
+  "KR Puram": {
+    "lat": 13.0005,
+    "lng": 77.6755,
+    "verified": true,
+    "broad_area": false
+  },
+  "Kumaraswamy Layout": {
+    "lat": 12.915,
+    "lng": 77.5679,
+    "verified": true,
+    "broad_area": false
+  },
+  "Langford Town": {
+    "lat": 12.958,
+    "lng": 77.6037,
+    "verified": true,
+    "broad_area": false
+  },
+  "Lavelle Road": {
+    "lat": 12.9722,
+    "lng": 77.5987,
+    "verified": true,
+    "broad_area": false
+  },
+  "Magadi Road": {
+    "lat": 12.9756,
+    "lng": 77.5554,
+    "verified": true,
+    "broad_area": false
+  },
+  "Majestic": {
+    "lat": 12.9779,
+    "lng": 77.5724,
+    "verified": true,
+    "broad_area": false
+  },
+  "Malleshwaram": {
+    "lat": 13.0027,
+    "lng": 77.5703,
+    "verified": true,
+    "broad_area": false
+  },
+  "Marathahalli": {
+    "lat": 12.9553,
+    "lng": 77.6984,
+    "verified": true,
+    "broad_area": false
+  },
+  "MG Road": {
+    "lat": 12.9755,
+    "lng": 77.6068,
+    "verified": true,
+    "broad_area": false
+  },
+  "Mysore Road": {
+    "lat": 12.9467,
+    "lng": 77.5301,
+    "verified": true,
+    "broad_area": false
+  },
+  "Nagarbhavi": {
+    "lat": 12.9512,
+    "lng": 77.5191,
+    "verified": true,
+    "broad_area": false
+  },
+  "Nagawara": {
+    "lat": 13.0423,
+    "lng": 77.6249,
+    "verified": true,
+    "broad_area": false
+  },
+  "New BEL Road": {
+    "lat": 13.0317,
+    "lng": 77.5701,
+    "verified": true,
+    "broad_area": false
+  },
+  "North Bangalore": {
+    "lat": 13.0222,
+    "lng": 77.5672,
+    "verified": false,
+    "broad_area": true
+  },
+  "Old Airport Road": {
+    "lat": 12.9572,
+    "lng": 77.6743,
+    "verified": true,
+    "broad_area": false
+  },
+  "Old Madras Road": {
+    "lat": 12.9957,
+    "lng": 77.6663,
+    "verified": true,
+    "broad_area": false
+  },
+  "Peenya": {
+    "lat": 13.0331,
+    "lng": 77.5332,
+    "verified": true,
+    "broad_area": false
+  },
+  "Race Course Road": {
+    "lat": 12.9843,
+    "lng": 77.588,
+    "verified": true,
+    "broad_area": false
+  },
+  "Rajajinagar": {
+    "lat": 13.0005,
+    "lng": 77.5497,
+    "verified": true,
+    "broad_area": false
+  },
+  "Rajarajeshwari Nagar": {
+    "lat": 12.9274,
+    "lng": 77.5155,
+    "verified": true,
+    "broad_area": false
+  },
+  "Rammurthy Nagar": {
+    "lat": 13.012,
+    "lng": 77.6778,
+    "verified": true,
+    "broad_area": false
+  },
+  "Residency Road": {
+    "lat": 12.9667,
+    "lng": 77.5987,
+    "verified": true,
+    "broad_area": false
+  },
+  "Richmond Road": {
+    "lat": 12.9669,
+    "lng": 77.6098,
+    "verified": true,
+    "broad_area": false
+  },
+  "RT Nagar": {
+    "lat": 13.0227,
+    "lng": 77.5957,
+    "verified": true,
+    "broad_area": false
+  },
+  "Sadashiv Nagar": {
+    "lat": 13.011,
+    "lng": 77.5809,
+    "verified": true,
+    "broad_area": false
+  },
+  "Sahakara Nagar": {
+    "lat": 13.0621,
+    "lng": 77.5801,
+    "verified": true,
+    "broad_area": false
+  },
+  "Sanjay Nagar": {
+    "lat": 13.0295,
+    "lng": 77.5785,
+    "verified": true,
+    "broad_area": false
+  },
+  "Sankey Road": {
+    "lat": 13.0081,
+    "lng": 77.5721,
+    "verified": true,
+    "broad_area": false
+  },
+  "Sarjapur Road": {
+    "lat": 12.924,
+    "lng": 77.653,
+    "verified": true,
+    "broad_area": false
+  },
+  "Seshadripuram": {
+    "lat": 12.9947,
+    "lng": 77.5747,
+    "verified": true,
+    "broad_area": false
+  },
+  "Shanti Nagar": {
+    "lat": 12.9555,
+    "lng": 77.5924,
+    "verified": true,
+    "broad_area": false
+  },
+  "Shivajinagar": {
+    "lat": 12.9855,
+    "lng": 77.6054,
+    "verified": true,
+    "broad_area": false
+  },
+  "South Bangalore": {
+    "lat": 12.9288,
+    "lng": 77.6287,
+    "verified": false,
+    "broad_area": true
+  },
+  "St. Marks Road": {
+    "lat": 12.9728,
+    "lng": 77.6013,
+    "verified": true,
+    "broad_area": false
+  },
+  "Thippasandra": {
+    "lat": 12.9739,
+    "lng": 77.651,
+    "verified": true,
+    "broad_area": false
+  },
+  "Ulsoor": {
+    "lat": 12.9779,
+    "lng": 77.6247,
+    "verified": true,
+    "broad_area": false
+  },
+  "Uttarahalli": {
+    "lat": 12.9056,
+    "lng": 77.5455,
+    "verified": true,
+    "broad_area": false
+  },
+  "Varthur Main Road, Whitefield": {
+    "lat": 12.9592,
+    "lng": 77.7463,
+    "verified": true,
+    "broad_area": false
+  },
+  "Vasanth Nagar": {
+    "lat": 12.9922,
+    "lng": 77.5915,
+    "verified": true,
+    "broad_area": false
+  },
+  "Vijay Nagar": {
+    "lat": 12.971,
+    "lng": 77.5374,
+    "verified": true,
+    "broad_area": false
+  },
+  "West Bangalore": {
+    "lat": 13.0222,
+    "lng": 77.5672,
+    "verified": false,
+    "broad_area": true
+  },
+  "Whitefield": {
+    "lat": 12.9957,
+    "lng": 77.7579,
+    "verified": true,
+    "broad_area": false
+  },
+  "Wilson Garden": {
+    "lat": 12.9489,
+    "lng": 77.5968,
+    "verified": true,
+    "broad_area": false
+  },
+  "Yelahanka": {
+    "lat": 13.1007,
+    "lng": 77.5963,
+    "verified": true,
+    "broad_area": false
+  },
+  "Yeshwantpur": {
+    "lat": 13.0222,
+    "lng": 77.5531,
+    "verified": true,
+    "broad_area": false
+  }
+}

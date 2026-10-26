@@ -53,71 +53,94 @@ class RecommendService:
         """Clear in-memory response cache."""
         self._cache.clear()
 
+    def _safe_query_candidates(
+        self,
+        preference: Preference,
+        limit: int,
+        locations: list[str] | None = None,
+    ) -> tuple[list[Restaurant], dict[str, int]]:
+        """Safely execute query_candidates across multiple locations with mock/signature resilience."""
+        if locations is not None:
+            try:
+                return self.store.query_candidates(preference, limit, locations=locations)
+            except TypeError:
+                try:
+                    return self.store.query_candidates(preference, limit, locations)
+                except TypeError:
+                    return self.store.query_candidates(preference, limit)
+        return self.store.query_candidates(preference, limit)
+
     # ------------------------------------------------------------------
-    # Phase 7 — Candidate Relaxation Policy (architecture §8.2)
+    # Candidate Relaxation Ladder (architecture §8.2, geo plan §6, §10.4)
     # ------------------------------------------------------------------
 
     def get_candidates_with_relaxation(
         self,
         preference: Preference,
         candidate_limit: int | None = None,
-    ) -> tuple[list[Restaurant], list[str], Preference]:
+    ) -> tuple[list[Restaurant], list[str], Preference, dict[str, float]]:
         """
-        Phase 7: Relaxation policy when candidate shortlist is empty:
-        1. Query candidates matching strict preferences.
-        2. If 0 candidates and extras specified: drop extra tags first.
-        3. If still 0 candidates: widen budget band by one step (e.g. low -> medium, medium -> high/low).
-           Premium ('high') budget is never relaxed down to medium to protect the user's hard constraint.
-        4. Return (candidates, relaxed_filters, effective_preference).
-           Notice: original preference is never modified in the outer response.query.
+        Candidate retrieval policy (Strict Search First):
+        1. Strict initial search:
+           - Query candidates matching strict preference in the specified neighbourhood.
+           - If 0 candidates and extras specified: drop extra tags while keeping strict location, budget, cuisine, rating.
+           - If still 0 candidates and NOT include_nearby: return empty candidate set (honest empty state).
+        2. Explicit Nearby Search (ONLY when preference.include_nearby is True):
+           - Search eligible alternative neighbourhoods within 10 km while preserving selected cuisine, budget, min_rating, and extras.
+           - Returns candidates with approximate distance mapping.
         """
         from app.catalog.filters import get_candidate_limit
+        from app.catalog.geo import find_nearby_neighbourhoods_with_distance
 
         limit = candidate_limit or get_candidate_limit()
 
-        # 1. Primary strict candidate search
+        # Step 1: Strict candidate search in target neighbourhood
         candidates, _ = self.store.query_candidates(preference, limit)
         if candidates:
-            return candidates, [], preference
+            return candidates, [], preference, {}
 
-        # 2. Step 1: Drop extra tags first
+        # Step 2: Extras relaxation only (drop extra tags while keeping strict location, budget, cuisine, rating)
         if preference.extras:
             p_no_extras = preference.model_copy(update={"extras": None})
             cand_no_extras, _ = self.store.query_candidates(p_no_extras, limit)
             if cand_no_extras:
-                logger.info("Shortlist empty: dropped extras filter '%s' -> %d candidates", preference.extras, len(cand_no_extras))
-                return cand_no_extras, ["extras"], p_no_extras
+                logger.info(
+                    "Shortlist empty: dropped extras filter '%s' -> %d candidates",
+                    preference.extras,
+                    len(cand_no_extras),
+                )
+                return cand_no_extras, ["extras"], p_no_extras, {}
 
-        # 3. Step 2: Then widen budget by one band (low -> medium, medium -> high/low).
-        # Premium ('high') budget searches never automatically fall back to medium.
-        current_budget = (preference.budget or "").strip().lower()
-        widened_budgets: list[str] = []
-        if current_budget == "low":
-            widened_budgets = ["medium"]
-        elif current_budget == "medium":
-            widened_budgets = ["high", "low"]
-        elif current_budget == "high":
-            widened_budgets = []
+        # If user has NOT explicitly requested nearby search, return empty (strict search first)
+        if not getattr(preference, "include_nearby", False):
+            return [], [], preference, {}
 
-        for b in widened_budgets:
-            # Try with original preference extras first
-            if preference.extras:
-                p_try = preference.model_copy(update={"budget": b})
-                c_try, _ = self.store.query_candidates(p_try, limit)
-                if c_try:
-                    logger.info("Shortlist empty: widened budget (%s -> %s) -> %d candidates", current_budget, b, len(c_try))
-                    return c_try, ["budget"], p_try
+        # Step 3: Explicit nearby search requested by user
+        if preference.location and preference.location.strip():
+            loc_clean = preference.location.strip()
+            nearby_with_dist = find_nearby_neighbourhoods_with_distance(loc_clean, 10.0)
+            if not nearby_with_dist:
+                return [], [], preference, {}
 
-            # Try with extras dropped
-            p_try_no_ext = preference.model_copy(update={"budget": b, "extras": None})
-            c_try_no_ext, _ = self.store.query_candidates(p_try_no_ext, limit)
-            if c_try_no_ext:
-                filters_relaxed = ["extras", "budget"] if preference.extras else ["budget"]
-                logger.info("Shortlist empty: relaxed %s -> %d candidates", filters_relaxed, len(c_try_no_ext))
-                return c_try_no_ext, filters_relaxed, p_try_no_ext
+            dist_map = {name.lower(): dist for name, dist in nearby_with_dist}
+            locs_10km = [name for name, _ in nearby_with_dist]
 
-        # 4. If all relaxations still yield 0 candidates, return empty
-        return [], [], preference
+            # Query nearby locations with strict filters
+            c_nearby, _ = self._safe_query_candidates(preference, limit, locations=locs_10km)
+            if not c_nearby and preference.extras:
+                p_no_ext = preference.model_copy(update={"extras": None})
+                c_nearby, _ = self._safe_query_candidates(p_no_ext, limit, locations=locs_10km)
+                if c_nearby:
+                    max_dist = max(dist_map.get((r.neighborhood or "").strip().lower(), 10.0) for r in c_nearby)
+                    expansion_flag = "location_expanded_5km" if max_dist <= 5.0 else "location_expanded_10km"
+                    return c_nearby, [expansion_flag, "extras"], p_no_ext, dist_map
+
+            if c_nearby:
+                max_dist = max(dist_map.get((r.neighborhood or "").strip().lower(), 10.0) for r in c_nearby)
+                expansion_flag = "location_expanded_5km" if max_dist <= 5.0 else "location_expanded_10km"
+                return c_nearby, [expansion_flag], preference, dist_map
+
+        return [], [], preference, {}
 
     # ------------------------------------------------------------------
     # Phase 3 helpers
@@ -127,6 +150,7 @@ class RecommendService:
         self,
         restaurant: Restaurant,
         preference: Preference,
+        distance_km: float | None = None,
     ) -> str:
         """
         Generate deterministic template explanation matching architecture §8.5:
@@ -146,6 +170,11 @@ class RecommendService:
             or (preference.location or "Bangalore")
         )
 
+        if distance_km is not None:
+            location_str = f"{location} (~{distance_km:.1f} km away)"
+        else:
+            location_str = location
+
         rating_str = (
             f"rating {restaurant.rating}"
             if restaurant.rating is not None
@@ -158,17 +187,30 @@ class RecommendService:
             else "unlisted budget"
         )
 
-        return f"{name} matches {cuisine} in {location} with {rating_str} and {cost_str}."
+        return f"{name} matches {cuisine} in {location_str} with {rating_str} and {cost_str}."
 
-    def build_summary(self, preference: Preference, rec_count: int) -> str:
+    def build_summary(
+        self,
+        preference: Preference,
+        rec_count: int,
+        relaxed_filters: list[str] | None = None,
+    ) -> str:
         """
-        Generate short 1-line summary matching architecture §8.6.
+        Generate short 1-line summary matching architecture §8.6 and geo plan §7.
         """
         if rec_count == 0:
             loc = preference.location or "Bangalore"
             return f"No restaurants matched your criteria in {loc}. Try widening your budget or adjusting cuisine."
 
+        relaxed = relaxed_filters or []
         cuisine_part = f"{preference.cuisine} " if preference.cuisine else ""
+
+        # Geo-expansion messaging (geo plan §7)
+        if "location_expanded_5km" in relaxed and preference.location:
+            return f"Top {rec_count} {cuisine_part}recommendations within 5 km of {preference.location}."
+        elif "location_expanded_10km" in relaxed and preference.location:
+            return f"Top {rec_count} {cuisine_part}recommendations within 10 km of {preference.location}."
+
         location_part = f"in {preference.location}" if preference.location else "in Bangalore"
         return f"Top {rec_count} {cuisine_part}recommendations {location_part}."
 
@@ -176,7 +218,7 @@ class RecommendService:
         self,
         preference: Preference | dict[str, Any],
         result_limit: int | None = None,
-        pre_filtered: tuple[list[Restaurant], list[str], Preference] | None = None,
+        pre_filtered: tuple | None = None,
     ) -> RecommendationResponse:
         """
         Deterministic heuristic recommendation flow (Phase 3 + Phase 7):
@@ -196,9 +238,13 @@ class RecommendService:
 
         # Retrieve candidates (applying relaxation if empty)
         if pre_filtered is not None:
-            candidates, relaxed_filters, effective_pref = pre_filtered
+            if len(pre_filtered) == 4:
+                candidates, relaxed_filters, effective_pref, dist_map = pre_filtered
+            else:
+                candidates, relaxed_filters, effective_pref = pre_filtered
+                dist_map = {}
         else:
-            candidates, relaxed_filters, effective_pref = self.get_candidates_with_relaxation(pref, limit)
+            candidates, relaxed_filters, effective_pref, dist_map = self.get_candidates_with_relaxation(pref, limit)
 
         candidate_count = len(candidates)
 
@@ -208,6 +254,7 @@ class RecommendService:
         # Rehydrate display fields strictly from catalog
         recommendations: list[RecommendationItem] = []
         for rank, rest in enumerate(top_candidates, start=1):
+            dist = dist_map.get((rest.neighborhood or "").strip().lower())
             item = RecommendationItem(
                 id=rest.id,
                 rank=rank,
@@ -217,12 +264,13 @@ class RecommendService:
                 votes=rest.votes,
                 estimated_cost=rest.cost_for_two,
                 neighborhood=rest.neighborhood or rest.listed_city,
-                explanation=self.build_template_explanation(rest, effective_pref),
+                distance_km=dist,
+                explanation=self.build_template_explanation(rest, effective_pref, distance_km=dist),
                 url=rest.url,
             )
             recommendations.append(item)
 
-        summary = self.build_summary(pref, len(recommendations))
+        summary = self.build_summary(pref, len(recommendations), relaxed_filters=relaxed_filters)
 
         return RecommendationResponse(
             query=pref,
@@ -243,6 +291,7 @@ class RecommendService:
         candidates: list[Restaurant],
         preference: Preference,
         result_limit: int,
+        dist_map: dict[str, float] | None = None,
     ) -> tuple[list[RecommendationItem], str] | None:
         """
         Map raw LLM JSON to RecommendationItems.
@@ -276,11 +325,13 @@ class RecommendService:
         valid_items.sort(key=lambda x: x.rank)
 
         recommendations: list[RecommendationItem] = []
+        d_map = dist_map or {}
         for llm_item in valid_items[:result_limit]:
             rest = catalog_by_id[llm_item.id]
             vibe_tag = (llm_item.vibe_tag or "").strip() or None
             if not vibe_tag and rest.rest_types:
                 vibe_tag = f"Authentic {rest.rest_types[0]}"
+            dist = d_map.get((rest.neighborhood or "").strip().lower())
             recommendations.append(
                 RecommendationItem(
                     id=rest.id,
@@ -292,6 +343,7 @@ class RecommendService:
                     votes=rest.votes,
                     estimated_cost=rest.cost_for_two,
                     neighborhood=rest.neighborhood or rest.listed_city,
+                    distance_km=dist,
                     explanation=llm_item.explanation,
                     vibe_tag=vibe_tag,
                     url=rest.url,
@@ -324,8 +376,8 @@ class RecommendService:
 
         limit = result_limit or get_result_limit()
 
-        # Retrieve candidates with Phase 7 relaxation policy
-        candidates, relaxed_filters, effective_pref = self.get_candidates_with_relaxation(pref, limit)
+        # Retrieve candidates (Strict search first, or nearby on explicit request)
+        candidates, relaxed_filters, effective_pref, dist_map = self.get_candidates_with_relaxation(pref, limit)
         candidate_count = len(candidates)
 
         if not candidates:
@@ -340,7 +392,12 @@ class RecommendService:
             )
 
         # Attempt LLM call — guard against any unexpected exception from the client
-        user_prompt = build_user_prompt(effective_pref, candidates, result_limit=limit)
+        user_prompt = build_user_prompt(
+            effective_pref,
+            candidates,
+            result_limit=limit,
+            relaxed_filters=relaxed_filters,
+        )
         try:
             llm_data = complete_json(SYSTEM_PROMPT, user_prompt)
         except Exception as exc:
@@ -348,7 +405,7 @@ class RecommendService:
             llm_data = None
 
         if llm_data is not None:
-            mapped = self._map_llm_response(llm_data, candidates, effective_pref, limit)
+            mapped = self._map_llm_response(llm_data, candidates, effective_pref, limit, dist_map=dist_map)
             if mapped is not None:
                 recommendations, llm_summary = mapped
                 logger.info(
@@ -369,7 +426,7 @@ class RecommendService:
         heuristic_resp = self.recommend_heuristic(
             pref,
             result_limit=limit,
-            pre_filtered=(candidates, relaxed_filters, effective_pref),
+            pre_filtered=(candidates, relaxed_filters, effective_pref, dist_map),
         )
         return heuristic_resp
 
@@ -392,6 +449,7 @@ class RecommendService:
             pref.cuisine,
             pref.min_rating,
             pref.extras,
+            pref.include_nearby,
             limit,
         )
 

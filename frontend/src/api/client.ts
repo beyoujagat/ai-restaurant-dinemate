@@ -19,6 +19,7 @@ export interface RecommendationRequest {
   cuisine: string;
   min_rating?: number | null;
   extras?: string;
+  include_nearby?: boolean;
 }
 
 export interface RecommendationItem {
@@ -30,6 +31,7 @@ export interface RecommendationItem {
   votes: number;
   estimated_cost: number | null;
   neighborhood: string;
+  distance_km?: number | null;
   explanation: string;
   vibe_tag?: string | null;
   url?: string | null;
@@ -81,6 +83,29 @@ export async function fetchRecommendations(
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch recommendations: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export interface NearbyNeighbourhoodItem {
+  name: string;
+  distance_km: number;
+}
+
+export interface NearbyResponse {
+  location: string;
+  nearby_5km: NearbyNeighbourhoodItem[];
+  nearby_10km: NearbyNeighbourhoodItem[];
+}
+
+export async function fetchNearbyNeighbourhoods(
+  location: string
+): Promise<NearbyResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/meta/nearby?location=${encodeURIComponent(location)}`
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to load nearby neighbourhoods: ${response.statusText}`);
   }
   return response.json();
 }

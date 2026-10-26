@@ -48,6 +48,9 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
         <div className="card-location-chip">
           <span className="chip-pin">📍</span>
           <span className="chip-neighborhood">{item.neighborhood}</span>
+          {item.distance_km !== undefined && item.distance_km !== null && (
+            <span className="chip-distance"> (~{item.distance_km.toFixed(1)} km)</span>
+          )}
         </div>
 
         <div className="card-rating-badge">

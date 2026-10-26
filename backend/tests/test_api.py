@@ -97,6 +97,66 @@ class TestMetaOptions:
         assert all(isinstance(r, (int, float)) for r in choices)
 
 
+class TestMetaNearby:
+    def test_nearby_returns_5km_and_10km_lists(self, client):
+        resp = client.get("/api/meta/nearby?location=Indiranagar")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["location"] == "Indiranagar"
+        assert "nearby_5km" in data
+        assert "nearby_10km" in data
+        assert len(data["nearby_5km"]) > 0
+        assert len(data["nearby_10km"]) >= len(data["nearby_5km"])
+        # Check item structure
+        first_item = data["nearby_5km"][0]
+        assert "name" in first_item
+        assert "distance_km" in first_item
+        assert isinstance(first_item["distance_km"], (int, float))
+
+    def test_nearby_broad_area_returns_empty(self, client):
+        resp = client.get("/api/meta/nearby?location=Central%20Bangalore")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["nearby_5km"] == []
+        assert data["nearby_10km"] == []
+
+    def test_nearby_respects_custom_radius_below_10km(self, client):
+        resp = client.get("/api/meta/nearby?location=Indiranagar&radius_km=3.0")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["location"] == "Indiranagar"
+        # All items in requested radius must be <= 3.0 km
+        assert len(data["nearby_10km"]) > 0
+        for item in data["nearby_10km"]:
+            assert 0.0 < item["distance_km"] <= 3.0
+        # 5 km results must be subset and <= 3.0 km
+        for item in data["nearby_5km"]:
+            assert 0.0 < item["distance_km"] <= 3.0
+        names_10km = {item["name"] for item in data["nearby_10km"]}
+        names_5km = {item["name"] for item in data["nearby_5km"]}
+        assert names_5km.issubset(names_10km)
+
+    def test_nearby_negative_and_zero_radius(self, client):
+        for bad_r in (-5.0, 0.0):
+            resp = client.get(f"/api/meta/nearby?location=Indiranagar&radius_km={bad_r}")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["nearby_5km"] == []
+            assert data["nearby_10km"] == []
+
+    def test_nearby_5km_is_always_subset_of_requested_radius(self, client):
+        for radius in (2.0, 5.0, 7.5, 12.0):
+            resp = client.get(f"/api/meta/nearby?location=Indiranagar&radius_km={radius}")
+            assert resp.status_code == 200
+            data = resp.json()
+            names_10km = [item["name"] for item in data["nearby_10km"]]
+            names_5km = [item["name"] for item in data["nearby_5km"]]
+            assert set(names_5km).issubset(set(names_10km))
+            for item in data["nearby_5km"]:
+                assert item["distance_km"] <= 5.0
+                assert item["distance_km"] <= radius
+
+
 class TestRecommendValidation:
     def test_invalid_budget_returns_422(self, client):
         resp = client.post("/api/recommend", json={"location": "Banashankari", "budget": "mega-rich"})
